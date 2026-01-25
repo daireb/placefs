@@ -1,6 +1,6 @@
 name = "daireb/placefs"
-version = "0.1.1"
-description = "Lune tooling for syncing instances from a published place to the file system"
+version = "0.2.0"
+description = "Sync Roblox instances from a published place to your local filesystem"
 authors = ["daireb"]
 license = "MIT"
 

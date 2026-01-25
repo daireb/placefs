@@ -1,0 +1,116 @@
+# placefs
+
+Sync Roblox instances from a published place to your local filesystem. Built with [Lune](https://lune-org.github.io/docs).
+
+## Installation
+
+```bash
+pesde add daireb/placefs
+```
+
+Or add to your `pesde.toml`:
+
+```toml
+[dependencies]
+placefs = { name = "daireb/placefs", version = "^0.2.0", target = "lune" }
+```
+
+## Setup
+
+1. Create a `placefs.toml` in your project root:
+
+```toml
+[settings]
+placeId = 123456789  # Your published place ID
+
+[[assets]]
+robloxPath = "game.Workspace.Map"
+filesystemPath = "./assets/map.rbxm"
+```
+
+2. (Optional) Set your Roblox auth cookie as an environment variable if the auto-import fails:
+
+```bash
+export ROBLOSECURITY="your_cookie_here"
+```
+
+## Usage
+
+Update specific instances:
+
+```bash
+pesde run placefs -- game.Workspace.Maps game.Workspace.Parts
+```
+
+Update all mapped assets:
+
+```bash
+pesde run placefs -- all
+```
+
+## Configuration
+
+### Single file mode
+
+Serialize an entire instance tree as one `.rbxm` file:
+
+```toml
+[[assets]]
+robloxPath = "game.Workspace.Parts"
+filesystemPath = "./assets/parts.rbxm"
+```
+
+### Folder expansion mode
+
+Expand a Folder's children into a directory structure:
+
+```toml
+[[assets]]
+robloxPath = "game.Workspace.Maps"
+filesystemPath = "./assets/maps"
+maxExpansionDepth = 2  # optional, default: 2
+```
+
+This creates a directory mirroring the folder hierarchy:
+
+```
+assets/maps/
+├── Level1/
+│   ├── Spawn.rbxm
+│   └── Props.rbxm
+└── Level2/
+    └── Terrain.rbxm
+```
+
+**Rules:**
+- `filesystemPath` without extension → folder expansion (instance must be a Folder)
+- `filesystemPath` with `.rbxm`/`.rbxmx` → single file (no expansion)
+- `maxExpansionDepth` controls how deep to expand (any folders at the limit become `.rbxm` files)
+
+### Targeted updates
+
+Update specific instances within an expanded folder:
+
+```bash
+# Update just one child
+lune run main -- game.Workspace.Maps.Level1
+
+# Update a deeply nested instance
+lune run main -- game.Workspace.Maps.Level1.Props
+```
+
+## Example output
+
+```
+[placefs] Updating 3 instances...
+[placefs] Saving: game.Workspace.Maps -> ./assets/maps
+[placefs] Saving: game.Workspace.Parts -> ./assets/parts.rbxm
+
+[placefs] Summary: 2 succeeded, 1 failed
+[placefs] Errors:
+  - game.Workspace.Missing: Instance not found at Roblox path: 'game.Workspace.Missing'
+```
+
+## License
+
+MIT
