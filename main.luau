@@ -8,7 +8,7 @@ local normalizeRobloxPath = require("./lib/normalize_path")
 -- Parse command line arguments
 local args = parseArgs({
 	name = "placefs",
-	version = "0.3.0",
+	version = "0.3.1",
 	description = "Sync Roblox instances from a published place to your local filesystem",
 	flags = {
 		all = { short = "a", description = "Update all mapped assets" },
