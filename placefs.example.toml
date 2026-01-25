@@ -1,6 +1,15 @@
 [settings]
 placeId = 123
 
+# Single file mode: serialize entire instance as one .rbxm file
 [[assets]]
 robloxPath = "game.Workspace.Parts"
 filesystemPath = "./assets/parts.rbxm"
+
+# Folder expansion mode: expand Folder children into a directory structure
+# - maxExpansionDepth controls how deep to expand (default: 2)
+# - Folders at or beyond the depth limit are serialized as .rbxm files
+[[assets]]
+robloxPath = "game.Workspace.Maps"
+filesystemPath = "./assets/maps"
+# maxExpansionDepth = 1

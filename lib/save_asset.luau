@@ -1,6 +1,9 @@
 local roblox = require("@lune/roblox")
 local fs = require("@lune/fs")
 
+local DEFAULT_MAX_EXPANSION_DEPTH = 2
+
+--- Parses a dot-separated path starting from a parent instance.
 local function parseRobloxPath(parent: roblox.Instance, path: string): roblox.Instance?
 	local segments = path:split(".")
 	local currentInstance: roblox.Instance? = parent
@@ -16,10 +19,11 @@ local function parseRobloxPath(parent: roblox.Instance, path: string): roblox.In
 	return currentInstance
 end
 
---- Saves a Roblox instance to the filesystem at the specified path.
-return function(game: roblox.DataModel, robloxPath: string, filesystemPath: string)
-	-- Determine root instance of robloxPath
+--- Resolves an instance from a full Roblox path (e.g., "game.Workspace.Parts").
+local function resolveInstance(game: roblox.DataModel, robloxPath: string): roblox.Instance
+	local originalPath = robloxPath
 	local root_instance: roblox.Instance?
+
 	if robloxPath:sub(1, 5) == "game." then
 		root_instance = game
 		robloxPath = robloxPath:sub(6)
@@ -29,24 +33,118 @@ return function(game: roblox.DataModel, robloxPath: string, filesystemPath: stri
 	end
 
 	if root_instance == nil then
-		error(`Invalid Roblox path: '{robloxPath}'. Failed to determine path's root instance.`)
+		error(`Invalid Roblox path: '{originalPath}'. Path must start with 'game.' or 'workspace.'`)
 	end
 
-	-- Locate instance in data model
 	local instance = parseRobloxPath(root_instance, robloxPath)
 	if instance == nil then
-		error(`Instance not found at Roblox path: '{robloxPath}'`)
+		error(`Instance not found at Roblox path: '{originalPath}'`)
 	end
 
-	-- Validate filesystem path
-	if filesystemPath:sub(-5) ~= ".rbxm" and filesystemPath:sub(-6) ~= ".rbxmx" then
-		error(`Filesystem path must end with '.rbxm' or '.rbxmx': '{filesystemPath}'`)
+	return instance
+end
+
+--- Checks if a filesystem path has a model file extension.
+local function hasModelExtension(path: string): boolean
+	return path:sub(-5) == ".rbxm" or path:sub(-6) == ".rbxmx"
+end
+
+--- Checks for duplicate child names and errors if found.
+local function validateNoDuplicateNames(instance: roblox.Instance)
+	local children = instance:GetChildren()
+	local seenNames: { [string]: boolean } = {}
+	local duplicates: { string } = {}
+
+	for _, child in children do
+		if seenNames[child.Name] then
+			if not table.find(duplicates, child.Name) then
+				table.insert(duplicates, child.Name)
+			end
+		else
+			seenNames[child.Name] = true
+		end
 	end
 
-	-- Serialize instance
-	local use_xml = filesystemPath:sub(-6) == ".rbxmx"
+	if #duplicates > 0 then
+		local duplicateList = table.concat(duplicates, ", ")
+		error(
+			`Folder '{instance.Name}' contains children with duplicate names: {duplicateList}. Rename them to avoid conflicts.`
+		)
+	end
+end
+
+--- Serializes an instance to a file.
+local function serializeToFile(instance: roblox.Instance, filePath: string)
+	local use_xml = filePath:sub(-6) == ".rbxmx"
 	local serializedData = roblox.serializeModel({ instance }, use_xml)
+	fs.writeFile(filePath, serializedData)
+end
 
-	-- Write to filesystem
-	fs.writeFile(filesystemPath, serializedData)
+--- Recursively saves a folder's contents as a directory structure.
+--- @param instance The Roblox instance to save
+--- @param basePath The filesystem path (without extension for folders)
+--- @param currentDepth Current recursion depth (starts at 0 for the mapped root)
+--- @param maxDepth Maximum expansion depth
+local function saveRecursive(instance: roblox.Instance, basePath: string, currentDepth: number, maxDepth: number)
+	local isFolder = instance.ClassName == "Folder"
+	local shouldExpand = isFolder and currentDepth < maxDepth
+
+	if shouldExpand then
+		-- Validate no duplicate names before creating directory
+		validateNoDuplicateNames(instance)
+
+		-- Clear and recreate directory to remove stale files
+		if fs.isDir(basePath) then
+			fs.removeDir(basePath)
+		end
+		fs.writeDir(basePath)
+
+		-- Recursively save children
+		for _, child in instance:GetChildren() do
+			local childPath = basePath .. "/" .. child.Name
+			saveRecursive(child, childPath, currentDepth + 1, maxDepth)
+		end
+	else
+		-- Serialize as a single .rbxm file
+		local filePath = basePath .. ".rbxm"
+
+		-- Ensure parent directory exists
+		local parentDir = filePath:match("(.+)/[^/]+$")
+		if parentDir and not fs.isDir(parentDir) then
+			fs.writeDir(parentDir)
+		end
+
+		serializeToFile(instance, filePath)
+	end
+end
+
+--- Saves a Roblox instance to the filesystem at the specified path.
+--- @param game The Roblox DataModel
+--- @param robloxPath The path to the instance in Roblox (e.g., "game.Workspace.Parts")
+--- @param filesystemPath The destination path on the filesystem
+--- @param maxExpansionDepth How deep to expand folders (nil for default, 0 for no expansion)
+return function(game: roblox.DataModel, robloxPath: string, filesystemPath: string, maxExpansionDepth: number?)
+	local instance = resolveInstance(game, robloxPath)
+	local effectiveMaxDepth = maxExpansionDepth or DEFAULT_MAX_EXPANSION_DEPTH
+
+	if hasModelExtension(filesystemPath) then
+		-- Explicit file extension: serialize as single file regardless of type
+		-- Ensure parent directory exists
+		local parentDir = filesystemPath:match("(.+)/[^/]+$")
+		if parentDir and not fs.isDir(parentDir) then
+			fs.writeDir(parentDir)
+		end
+
+		serializeToFile(instance, filesystemPath)
+	else
+		-- No extension: must be a Folder to expand
+		if instance.ClassName ~= "Folder" then
+			error(
+				`Cannot save non-Folder instance '{instance.Name}' (ClassName: {instance.ClassName}) to path without .rbxm or .rbxmx extension. `
+					.. `Either use a file extension or ensure the instance is a Folder.`
+			)
+		end
+
+		saveRecursive(instance, filesystemPath, 0, effectiveMaxDepth)
+	end
 end
