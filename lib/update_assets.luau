@@ -14,6 +14,13 @@ type UpdateResult = {
 	error: string?,
 }
 
+--- Logs a message unless quiet mode is enabled.
+local function log(message: string, options: Types.Options?)
+	if not (options and options.quiet) then
+		print(message)
+	end
+end
+
 --- Checks if a filesystem path has a model file extension.
 local function hasModelExtension(path: string): boolean
 	return path:sub(-5) == ".rbxm" or path:sub(-6) == ".rbxmx"
@@ -193,7 +200,7 @@ local function buildTargetFilesystemPath(
 end
 
 --- Prints a summary of update results and returns the error count.
-local function printSummary(results: { UpdateResult }): number
+local function printSummary(results: { UpdateResult }, options: Types.Options?): number
 	local successCount, errorCount = 0, 0
 	local errors: { UpdateResult } = {}
 
@@ -206,9 +213,14 @@ local function printSummary(results: { UpdateResult }): number
 		end
 	end
 
-	print(string.format("\n[placefs] Summary: %d succeeded, %d failed", successCount, errorCount))
+	local isDryRun = options and options.dryRun
+	local successWord = if isDryRun then "would succeed" else "succeeded"
+	local failWord = if isDryRun then "would fail" else "failed"
+
+	log(string.format("\n[placefs] Summary: %d %s, %d %s", successCount, successWord, errorCount, failWord), options)
 
 	if #errors > 0 then
+		-- Always print errors, even in quiet mode
 		print("[placefs] Errors:")
 		for _, result in errors do
 			print(string.format("  - %s: %s", result.path, result.error or "Unknown error"))
@@ -219,8 +231,13 @@ local function printSummary(results: { UpdateResult }): number
 end
 
 --- Updates assets and returns the number of failures (0 = all successful).
-return function(syncConfig: Types.SyncConfig, instancesToUpdate: { string }): number
+return function(syncConfig: Types.SyncConfig, instancesToUpdate: { string }, options: Types.Options?): number
 	local entryLookup = buildEntryLookup(syncConfig.map)
+	local isDryRun = options and options.dryRun
+
+	if isDryRun then
+		log("[placefs] DRY RUN - no files will be written", options)
+	end
 
 	-- Check for any overlapping entries in assetMap
 	for _, entry in syncConfig.map do
@@ -254,13 +271,14 @@ return function(syncConfig: Types.SyncConfig, instancesToUpdate: { string }): nu
 
 	-- Download place from Roblox
 	local auth_cookie = get_auth_cookie()
-	local game = download_place(syncConfig.placeId, auth_cookie)
+	local game = download_place(syncConfig.placeId, auth_cookie, options)
 
 	-- Track results for summary
 	local results: { UpdateResult } = {}
 
 	-- Save each requested instance
-	print(string.format("[placefs] Updating %d instances...", #instancesToUpdate))
+	local actionWord = if isDryRun then "Checking" else "Updating"
+	log(string.format("[placefs] %s %d instances...", actionWord, #instancesToUpdate), options)
 
 	for _, targetRobloxPath in instancesToUpdate do
 		local entry = findAncestorEntry(entryLookup, targetRobloxPath)
@@ -275,11 +293,13 @@ return function(syncConfig: Types.SyncConfig, instancesToUpdate: { string }): nu
 
 		local effectiveMaxDepth = getEffectiveMaxDepth(entry)
 
+		local saveWord = if isDryRun then "Would save" else "Saving"
+
 		local ok, err = pcall(function()
 			if targetRobloxPath == entry.robloxPath then
 				-- Exact match: save the whole mapping
-				print(`[placefs] Saving: {entry.robloxPath} -> {entry.filesystemPath}`)
-				save_asset(game, entry.robloxPath, entry.filesystemPath, effectiveMaxDepth)
+				log(`[placefs] {saveWord}: {entry.robloxPath} -> {entry.filesystemPath}`, options)
+				save_asset(game, entry.robloxPath, entry.filesystemPath, effectiveMaxDepth, options)
 			else
 				-- Targeted update: validate path is reachable and save just the target
 				local relativeSegments = getRelativeSegments(entry.robloxPath, targetRobloxPath)
@@ -301,8 +321,8 @@ return function(syncConfig: Types.SyncConfig, instancesToUpdate: { string }): nu
 				-- Calculate remaining expansion depth for this target
 				local remainingDepth = effectiveMaxDepth - targetDepth
 
-				print(`[placefs] Saving: {targetRobloxPath} -> {targetFilesystemPath}`)
-				save_asset(game, targetRobloxPath, targetFilesystemPath, remainingDepth)
+				log(`[placefs] {saveWord}: {targetRobloxPath} -> {targetFilesystemPath}`, options)
+				save_asset(game, targetRobloxPath, targetFilesystemPath, remainingDepth, options)
 			end
 		end)
 
@@ -313,5 +333,5 @@ return function(syncConfig: Types.SyncConfig, instancesToUpdate: { string }): nu
 		end
 	end
 
-	return printSummary(results)
+	return printSummary(results, options)
 end

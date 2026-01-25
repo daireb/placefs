@@ -12,6 +12,8 @@ local args = parseArgs({
 	description = "Sync Roblox instances from a published place to your local filesystem",
 	flags = {
 		all = { short = "a", description = "Update all mapped assets" },
+		["dry-run"] = { short = "n", description = "Preview changes without writing files" },
+		quiet = { short = "q", description = "Suppress output except errors" },
 	},
 	options = {
 		config = { short = "c", description = "Path to config file", default = "placefs.toml" },
@@ -19,7 +21,7 @@ local args = parseArgs({
 	examples = {
 		"pesde run placefs -- game.Workspace.Maps game.Workspace.Parts",
 		"pesde run placefs -- --all",
-		"pesde run placefs -- -c custom.toml --all",
+		"pesde run placefs -- --dry-run --all",
 	},
 })
 
@@ -49,7 +51,10 @@ else
 	end
 end
 
-local failures = update_assets(config, to_update)
+local failures = update_assets(config, to_update, {
+	dryRun = args.flags["dry-run"],
+	quiet = args.flags.quiet,
+})
 
 if failures > 0 then
 	process.exit(1)

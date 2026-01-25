@@ -58,15 +58,22 @@ pesde run placefs -- --all
 OPTIONS:
     -a, --all              Update all mapped assets
     -c, --config <PATH>    Path to config file (default: placefs.toml)
+    -n, --dry-run          Preview changes without writing files
+    -q, --quiet            Suppress output except errors
     -h, --help             Show help message
     -v, --version          Show version
+```
+
+Preview what would be saved without writing files:
+
+```bash
+pesde run placefs -- --dry-run --all
 ```
 
 Use a custom config file:
 
 ```bash
 pesde run placefs -- --config custom.toml --all
-pesde run placefs -- -c custom.toml game.Workspace.Maps
 ```
 
 ### Running directly

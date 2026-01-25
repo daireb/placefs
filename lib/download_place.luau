@@ -1,6 +1,8 @@
 local net = require("@lune/net")
 local roblox = require("@lune/roblox")
 
+local Types = require("./Types")
+
 --- Formats bytes into a human-readable string
 local function formatBytes(bytes: number): string
 	if bytes < 1024 then
@@ -12,12 +14,19 @@ local function formatBytes(bytes: number): string
 	end
 end
 
+--- Logs a message unless quiet mode is enabled.
+local function log(message: string, options: Types.Options?)
+	if not (options and options.quiet) then
+		print(message)
+	end
+end
+
 --- Downloads a Roblox place asset as a serialised string
-local function downloadPlaceAsset(placeId: number, auth_cookie: string): string
+local function downloadPlaceAsset(placeId: number, auth_cookie: string, options: Types.Options?): string
 	assert(auth_cookie ~= nil, "ROBLOSECURITY cookie is required to download place assets")
 	assert(typeof(auth_cookie) == "string", "ROBLOSECURITY cookie must be a string")
 
-	print(`[placefs] Downloading place {placeId}...`)
+	log(`[placefs] Downloading place {placeId}...`, options)
 
 	local startTime = os.clock()
 
@@ -36,22 +45,22 @@ local function downloadPlaceAsset(placeId: number, auth_cookie: string): string
 	local elapsed = os.clock() - startTime
 	local size = #result.body
 
-	print(string.format("[placefs] Downloaded %s in %.1fs", formatBytes(size), elapsed))
+	log(string.format("[placefs] Downloaded %s in %.1fs", formatBytes(size), elapsed), options)
 
 	return result.body
 end
 
 --- Downloads and deserializes a Roblox place
-return function(placeId: number, auth_cookie: string)
-	local content = downloadPlaceAsset(placeId, auth_cookie)
+return function(placeId: number, auth_cookie: string, options: Types.Options?)
+	local content = downloadPlaceAsset(placeId, auth_cookie, options)
 
-	print("[placefs] Deserializing place...")
+	log("[placefs] Deserializing place...", options)
 	local startTime = os.clock()
 
 	local game = roblox.deserializePlace(content)
 
 	local elapsed = os.clock() - startTime
-	print(string.format("[placefs] Deserialized in %.1fs", elapsed))
+	log(string.format("[placefs] Deserialized in %.1fs", elapsed), options)
 
 	return game
 end

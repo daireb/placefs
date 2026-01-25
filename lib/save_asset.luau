@@ -1,6 +1,8 @@
 local roblox = require("@lune/roblox")
 local fs = require("@lune/fs")
 
+local Types = require("./Types")
+
 local DEFAULT_MAX_EXPANSION_DEPTH = 2
 
 --- Parses a dot-separated path starting from a parent instance.
@@ -64,7 +66,10 @@ local function validateNoDuplicateNames(instance: roblox.Instance)
 end
 
 --- Serializes an instance to a file.
-local function serializeToFile(instance: roblox.Instance, filePath: string)
+local function serializeToFile(instance: roblox.Instance, filePath: string, options: Types.Options?)
+	if options and options.dryRun then
+		return
+	end
 	local use_xml = filePath:sub(-6) == ".rbxmx"
 	local serializedData = roblox.serializeModel({ instance }, use_xml)
 	fs.writeFile(filePath, serializedData)
@@ -75,36 +80,48 @@ end
 --- @param basePath The filesystem path (without extension for folders)
 --- @param currentDepth Current recursion depth (starts at 0 for the mapped root)
 --- @param maxDepth Maximum expansion depth
-local function saveRecursive(instance: roblox.Instance, basePath: string, currentDepth: number, maxDepth: number)
+--- @param options Runtime options
+local function saveRecursive(
+	instance: roblox.Instance,
+	basePath: string,
+	currentDepth: number,
+	maxDepth: number,
+	options: Types.Options?
+)
 	local isFolder = instance.ClassName == "Folder"
 	local shouldExpand = isFolder and currentDepth < maxDepth
+	local isDryRun = options and options.dryRun
 
 	if shouldExpand then
 		-- Validate no duplicate names before creating directory
 		validateNoDuplicateNames(instance)
 
-		-- Clear and recreate directory to remove stale files
-		if fs.isDir(basePath) then
-			fs.removeDir(basePath)
+		if not isDryRun then
+			-- Clear and recreate directory to remove stale files
+			if fs.isDir(basePath) then
+				fs.removeDir(basePath)
+			end
+			fs.writeDir(basePath)
 		end
-		fs.writeDir(basePath)
 
 		-- Recursively save children
 		for _, child in instance:GetChildren() do
 			local childPath = basePath .. "/" .. child.Name
-			saveRecursive(child, childPath, currentDepth + 1, maxDepth)
+			saveRecursive(child, childPath, currentDepth + 1, maxDepth, options)
 		end
 	else
 		-- Serialize as a single .rbxm file
 		local filePath = basePath .. ".rbxm"
 
-		-- Ensure parent directory exists
-		local parentDir = filePath:match("(.+)/[^/]+$")
-		if parentDir and not fs.isDir(parentDir) then
-			fs.writeDir(parentDir)
+		if not isDryRun then
+			-- Ensure parent directory exists
+			local parentDir = filePath:match("(.+)/[^/]+$")
+			if parentDir and not fs.isDir(parentDir) then
+				fs.writeDir(parentDir)
+			end
 		end
 
-		serializeToFile(instance, filePath)
+		serializeToFile(instance, filePath, options)
 	end
 end
 
@@ -113,19 +130,29 @@ end
 --- @param robloxPath The path to the instance in Roblox (e.g., "game.Workspace.Parts")
 --- @param filesystemPath The destination path on the filesystem
 --- @param maxExpansionDepth How deep to expand folders (nil for default, 0 for no expansion)
-return function(game: roblox.DataModel, robloxPath: string, filesystemPath: string, maxExpansionDepth: number?)
+--- @param options Runtime options
+return function(
+	game: roblox.DataModel,
+	robloxPath: string,
+	filesystemPath: string,
+	maxExpansionDepth: number?,
+	options: Types.Options?
+)
 	local instance = resolveInstance(game, robloxPath)
 	local effectiveMaxDepth = maxExpansionDepth or DEFAULT_MAX_EXPANSION_DEPTH
+	local isDryRun = options and options.dryRun
 
 	if hasModelExtension(filesystemPath) then
 		-- Explicit file extension: serialize as single file regardless of type
-		-- Ensure parent directory exists
-		local parentDir = filesystemPath:match("(.+)/[^/]+$")
-		if parentDir and not fs.isDir(parentDir) then
-			fs.writeDir(parentDir)
+		if not isDryRun then
+			-- Ensure parent directory exists
+			local parentDir = filesystemPath:match("(.+)/[^/]+$")
+			if parentDir and not fs.isDir(parentDir) then
+				fs.writeDir(parentDir)
+			end
 		end
 
-		serializeToFile(instance, filesystemPath)
+		serializeToFile(instance, filesystemPath, options)
 	else
 		-- No extension: must be a Folder to expand
 		if instance.ClassName ~= "Folder" then
@@ -135,6 +162,6 @@ return function(game: roblox.DataModel, robloxPath: string, filesystemPath: stri
 			)
 		end
 
-		saveRecursive(instance, filesystemPath, 0, effectiveMaxDepth)
+		saveRecursive(instance, filesystemPath, 0, effectiveMaxDepth, options)
 	end
 end

@@ -23,4 +23,14 @@ export type SyncConfig = {
 	map: AssetMap,
 }
 
+--[[
+	Runtime options passed through the CLI.
+]]
+export type Options = {
+	--- Preview changes without writing files.
+	dryRun: boolean?,
+	--- Suppress output except errors.
+	quiet: boolean?,
+}
+
 return nil
