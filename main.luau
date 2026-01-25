@@ -3,7 +3,7 @@ local process = require("@lune/process")
 local update_assets = require("./lib/update_assets")
 local load_sync_config = require("./lib/load_sync_config")
 
-local config_path = process.cwd .. "asset-map.json"
+local config_path = process.cwd .. "placefs.toml"
 
 local config = load_sync_config(config_path)
 

@@ -1,9 +1,0 @@
-{
-  "placeId": 123,
-  "map": [
-    {
-      "robloxPath": "game.Workspace.Parts",
-      "filesystemPath": "./assets/parts.rbxm"
-    }
-  ]
-}

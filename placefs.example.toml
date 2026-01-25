@@ -1,0 +1,6 @@
+[settings]
+placeId = 123
+
+[[assets]]
+robloxPath = "game.Workspace.Parts"
+filesystemPath = "./assets/parts.rbxm"

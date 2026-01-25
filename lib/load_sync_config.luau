@@ -21,21 +21,32 @@ end
 return function(path: string)
 	-- Check if the file exists
 	if not fs.isFile(path) then
-		error("Asset map file does not exist at path: " .. path)
+		error("Config file does not exist at path: " .. path)
 	end
 
-	-- Read and parse the asset map
-	local content = serde.decode("json", fs.readFile(path)) :: Types.SyncConfig
+	-- Read and parse the config
+	local content = serde.decode("toml", fs.readFile(path))
 
-	-- Validating the structure of the asset map
-	if typeof(content.placeId) ~= "number" then
-		error(`Invalid asset map: placeId must be a number, got {tostring(content.placeId)}`)
+	-- Validating the structure of the config
+	if typeof(content.settings) ~= "table" then
+		error("Invalid config: missing [settings] section")
 	end
 
-	for _, asset in content.map do
+	if typeof(content.settings.placeId) ~= "number" then
+		error(`Invalid config: settings.placeId must be a number, got {tostring(content.settings.placeId)}`)
+	end
+
+	if typeof(content.assets) ~= "table" then
+		error("Invalid config: missing [[assets]] entries")
+	end
+
+	for _, asset in content.assets do
 		validate_asset_map_entry(asset)
 	end
 
-	-- Return the validated content
-	return content
+	-- Return as SyncConfig structure
+	return {
+		placeId = content.settings.placeId,
+		map = content.assets,
+	} :: Types.SyncConfig
 end
