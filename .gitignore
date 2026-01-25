@@ -1,0 +1,8 @@
+# pesde
+.pesde
+/luau_packages
+/lune_packages
+
+# PlaceFS config
+asset-map.json
+/assets
