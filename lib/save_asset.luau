@@ -20,25 +20,15 @@ local function parseRobloxPath(parent: roblox.Instance, path: string): roblox.In
 end
 
 --- Resolves an instance from a full Roblox path (e.g., "game.Workspace.Parts").
+--- Expects paths to be normalized to "game." prefix format.
 local function resolveInstance(game: roblox.DataModel, robloxPath: string): roblox.Instance
-	local originalPath = robloxPath
-	local root_instance: roblox.Instance?
-
-	if robloxPath:sub(1, 5) == "game." then
-		root_instance = game
-		robloxPath = robloxPath:sub(6)
-	elseif robloxPath:sub(1, 10) == "workspace." then
-		root_instance = game:FindFirstChild("Workspace")
-		robloxPath = robloxPath:sub(11)
+	if robloxPath:sub(1, 5) ~= "game." then
+		error(`Invalid Roblox path: '{robloxPath}'. Path must start with 'game.'`)
 	end
 
-	if root_instance == nil then
-		error(`Invalid Roblox path: '{originalPath}'. Path must start with 'game.' or 'workspace.'`)
-	end
-
-	local instance = parseRobloxPath(root_instance, robloxPath)
+	local instance = parseRobloxPath(game, robloxPath:sub(6))
 	if instance == nil then
-		error(`Instance not found at Roblox path: '{originalPath}'`)
+		error(`Instance not found at Roblox path: '{robloxPath}'`)
 	end
 
 	return instance

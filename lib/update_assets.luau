@@ -71,18 +71,13 @@ local function getRelativeSegments(ancestorPath: string, targetPath: string): { 
 end
 
 --- Resolves an instance from a Roblox path, returning the DataModel root for further traversal.
+--- Expects paths to be normalized to "game." prefix format.
 local function resolveRootInstance(game: roblox.DataModel, robloxPath: string): (roblox.Instance, string)
-	if robloxPath:sub(1, 5) == "game." then
-		return game, robloxPath:sub(6)
-	elseif robloxPath:sub(1, 10) == "workspace." then
-		local workspace = game:FindFirstChild("Workspace")
-		if workspace == nil then
-			error("Workspace not found in DataModel")
-		end
-		return workspace, robloxPath:sub(11)
+	if robloxPath:sub(1, 5) ~= "game." then
+		error(`Invalid Roblox path: '{robloxPath}'. Path must start with 'game.'`)
 	end
 
-	error(`Invalid Roblox path: '{robloxPath}'. Path must start with 'game.' or 'workspace.'`)
+	return game, robloxPath:sub(6)
 end
 
 --- Resolves an instance from the given parent using a dot-separated path.

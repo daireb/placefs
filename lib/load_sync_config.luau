@@ -2,6 +2,7 @@ local fs = require("@lune/fs")
 local serde = require("@lune/serde")
 
 local Types = require("./Types")
+local normalizeRobloxPath = require("./normalize_path")
 
 local function validate_asset_map_entry(entry: Types.AssetMapEntry)
 	assert(typeof(entry.robloxPath) == "string", "robloxPath must be a string")
@@ -41,6 +42,7 @@ return function(path: string)
 	end
 
 	for _, asset in content.assets do
+		asset.robloxPath = normalizeRobloxPath(asset.robloxPath)
 		validate_asset_map_entry(asset)
 	end
 

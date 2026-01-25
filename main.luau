@@ -2,6 +2,7 @@ local process = require("@lune/process")
 
 local update_assets = require("./lib/update_assets")
 local load_sync_config = require("./lib/load_sync_config")
+local normalizeRobloxPath = require("./lib/normalize_path")
 
 local config_path = process.cwd .. "placefs.toml"
 
@@ -18,9 +19,9 @@ if #process.args == 1 and (process.args[1] == "--all" or process.args[1] == "all
 elseif #process.args == 0 then
 	error("No instances specified. Use '--all' to update all assets, or provide Roblox instance paths.")
 else
-	-- Use provided paths
+	-- Use provided paths (normalize to canonical format)
 	for _, arg in process.args do
-		table.insert(to_update, arg)
+		table.insert(to_update, normalizeRobloxPath(arg))
 	end
 end
 
