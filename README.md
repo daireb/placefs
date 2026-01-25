@@ -1,18 +1,22 @@
 # placefs
 
-Sync Roblox instances from a published place to your local filesystem. Built with [Lune](https://lune-org.github.io/docs).
+Sync Roblox instances from a published place to your local filesystem.
+
+Intended and build for easily downloading the latest updates from a teamcreate builder place onto your file-system for fully-managed [rojo](https://rojo.space/).
+
+Built with [Lune](https://lune-org.github.io/docs).
 
 ## Installation
 
 ```bash
-pesde add daireb/placefs
+pesde add gh#daireb/placefs#main
 ```
 
 Or add to your `pesde.toml`:
 
 ```toml
 [dependencies]
-placefs = { name = "daireb/placefs", version = "^0.2.0", target = "lune" }
+placefs = { repo = "https://github.com/daireb/placefs", rev = "main" }
 ```
 
 ## Setup
@@ -93,10 +97,10 @@ Update specific instances within an expanded folder:
 
 ```bash
 # Update just one child
-lune run main -- game.Workspace.Maps.Level1
+pesde run placefs -- game.Workspace.Maps.Level1
 
 # Update a deeply nested instance
-lune run main -- game.Workspace.Maps.Level1.Props
+pesde run placefs -- game.Workspace.Maps.Level1.Props
 ```
 
 ## Example output
