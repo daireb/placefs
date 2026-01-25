@@ -2,7 +2,7 @@
 
 Sync Roblox instances from a published place to your local filesystem.
 
-Intended and build for easily downloading the latest updates from a teamcreate builder place onto your file-system for fully-managed [rojo](https://rojo.space/).
+Intended and built for easily downloading the latest updates from a teamcreate builder place onto your file-system for fully-managed [rojo](https://rojo.space/).
 
 Built with [Lune](https://lune-org.github.io/docs).
 
@@ -49,7 +49,33 @@ pesde run placefs -- game.Workspace.Maps game.Workspace.Parts
 Update all mapped assets:
 
 ```bash
-pesde run placefs -- all
+pesde run placefs -- --all
+```
+
+### CLI Options
+
+```
+OPTIONS:
+    -a, --all              Update all mapped assets
+    -c, --config <PATH>    Path to config file (default: placefs.toml)
+    -h, --help             Show help message
+    -v, --version          Show version
+```
+
+Use a custom config file:
+
+```bash
+pesde run placefs -- --config custom.toml --all
+pesde run placefs -- -c custom.toml game.Workspace.Maps
+```
+
+### Running directly
+
+You can also run placefs directly with Lune without pesde:
+
+```bash
+lune run path/to/main.luau -- --all
+lune run path/to/main.luau -- game.Workspace.Maps
 ```
 
 ## Configuration

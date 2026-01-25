@@ -1,27 +1,51 @@
 local process = require("@lune/process")
 
+local parseArgs = require("./lib/parse_args")
 local update_assets = require("./lib/update_assets")
 local load_sync_config = require("./lib/load_sync_config")
 local normalizeRobloxPath = require("./lib/normalize_path")
 
-local config_path = process.cwd .. "placefs.toml"
+-- Parse command line arguments
+local args = parseArgs({
+	name = "placefs",
+	version = "0.3.0",
+	description = "Sync Roblox instances from a published place to your local filesystem",
+	flags = {
+		all = { short = "a", description = "Update all mapped assets" },
+	},
+	options = {
+		config = { short = "c", description = "Path to config file", default = "placefs.toml" },
+	},
+	examples = {
+		"pesde run placefs -- game.Workspace.Maps game.Workspace.Parts",
+		"pesde run placefs -- --all",
+		"pesde run placefs -- -c custom.toml --all",
+	},
+})
+
+-- Build config path
+local config_path = process.cwd .. args.options.config
 
 local config = load_sync_config(config_path)
 
 local to_update = {}
 
--- Check for --all flag
-if #process.args == 1 and (process.args[1] == "--all" or process.args[1] == "all") then
+if args.flags.all then
 	-- Gather all robloxPaths from config
 	for _, entry in config.map do
 		table.insert(to_update, entry.robloxPath)
 	end
-elseif #process.args == 0 then
-	error("No instances specified. Use '--all' to update all assets, or provide Roblox instance paths.")
+elseif #args.positionals == 0 then
+	-- No paths specified and --all not set
+	print("[placefs] Error: No instances specified.")
+	print("")
+	print("Use '--all' to update all assets, or provide Roblox instance paths.")
+	print("Run 'pesde run placefs -- --help' for usage information.")
+	process.exit(1)
 else
 	-- Use provided paths (normalize to canonical format)
-	for _, arg in process.args do
-		table.insert(to_update, normalizeRobloxPath(arg))
+	for _, path in args.positionals do
+		table.insert(to_update, normalizeRobloxPath(path))
 	end
 end
 
