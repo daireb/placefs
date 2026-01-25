@@ -24,6 +24,10 @@ else
 	end
 end
 
-update_assets(config, to_update)
+local failures = update_assets(config, to_update)
+
+if failures > 0 then
+	process.exit(1)
+end
 
 return nil

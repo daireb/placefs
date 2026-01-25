@@ -8,6 +8,12 @@ local save_asset = require("./save_asset")
 
 local DEFAULT_MAX_EXPANSION_DEPTH = 2
 
+type UpdateResult = {
+	path: string,
+	success: boolean,
+	error: string?,
+}
+
 --- Checks if a filesystem path has a model file extension.
 local function hasModelExtension(path: string): boolean
 	return path:sub(-5) == ".rbxm" or path:sub(-6) == ".rbxmx"
@@ -173,8 +179,8 @@ local function buildTargetFilesystemPath(
 	-- Start with the base path (which is a directory for expanded folders)
 	local path = baseFilesystemPath
 
-	-- Add each segment as a directory, except possibly the last one
-	for i, segment in relativeSegments do
+	-- Add each segment as a directory
+	for _, segment in relativeSegments do
 		path = path .. "/" .. segment
 	end
 
@@ -191,7 +197,34 @@ local function buildTargetFilesystemPath(
 	return path
 end
 
-return function(syncConfig: Types.SyncConfig, instancesToUpdate: { string })
+--- Prints a summary of update results and returns the error count.
+local function printSummary(results: { UpdateResult }): number
+	local successCount, errorCount = 0, 0
+	local errors: { UpdateResult } = {}
+
+	for _, result in results do
+		if result.success then
+			successCount += 1
+		else
+			errorCount += 1
+			table.insert(errors, result)
+		end
+	end
+
+	print(string.format("\n[placefs] Summary: %d succeeded, %d failed", successCount, errorCount))
+
+	if #errors > 0 then
+		print("[placefs] Errors:")
+		for _, result in errors do
+			print(string.format("  - %s: %s", result.path, result.error or "Unknown error"))
+		end
+	end
+
+	return errorCount
+end
+
+--- Updates assets and returns the number of failures (0 = all successful).
+return function(syncConfig: Types.SyncConfig, instancesToUpdate: { string }): number
 	local entryLookup = buildEntryLookup(syncConfig.map)
 
 	-- Check for any overlapping entries in assetMap
@@ -228,41 +261,62 @@ return function(syncConfig: Types.SyncConfig, instancesToUpdate: { string })
 	local auth_cookie = get_auth_cookie()
 	local game = download_place(syncConfig.placeId, auth_cookie)
 
+	-- Track results for summary
+	local results: { UpdateResult } = {}
+
 	-- Save each requested instance
-	print(string.format("[placefs] Updating %i instances...", #instancesToUpdate))
+	print(string.format("[placefs] Updating %d instances...", #instancesToUpdate))
 
 	for _, targetRobloxPath in instancesToUpdate do
 		local entry = findAncestorEntry(entryLookup, targetRobloxPath)
 		if entry == nil then
-			print(`[placefs] No known mapping found for instance path: '{targetRobloxPath}', skipping.`)
+			table.insert(results, {
+				path = targetRobloxPath,
+				success = false,
+				error = "No matching mapping found",
+			})
 			continue
 		end
 
 		local effectiveMaxDepth = getEffectiveMaxDepth(entry)
 
-		if targetRobloxPath == entry.robloxPath then
-			-- Exact match: save the whole mapping
-			print(`[placefs] Saving: {entry.robloxPath} -> {entry.filesystemPath}`)
-			save_asset(game, entry.robloxPath, entry.filesystemPath, effectiveMaxDepth)
+		local ok, err = pcall(function()
+			if targetRobloxPath == entry.robloxPath then
+				-- Exact match: save the whole mapping
+				print(`[placefs] Saving: {entry.robloxPath} -> {entry.filesystemPath}`)
+				save_asset(game, entry.robloxPath, entry.filesystemPath, effectiveMaxDepth)
+			else
+				-- Targeted update: validate path is reachable and save just the target
+				local relativeSegments = getRelativeSegments(entry.robloxPath, targetRobloxPath)
+				local targetDepth = #relativeSegments
+
+				-- Validate the path is reachable (not inside a serialized file)
+				local targetInstance =
+					validateAndResolveTarget(game, entry.robloxPath, relativeSegments, effectiveMaxDepth)
+
+				-- Calculate filesystem path for this specific target
+				local targetFilesystemPath = buildTargetFilesystemPath(
+					entry.filesystemPath,
+					relativeSegments,
+					targetInstance,
+					targetDepth,
+					effectiveMaxDepth
+				)
+
+				-- Calculate remaining expansion depth for this target
+				local remainingDepth = effectiveMaxDepth - targetDepth
+
+				print(`[placefs] Saving: {targetRobloxPath} -> {targetFilesystemPath}`)
+				save_asset(game, targetRobloxPath, targetFilesystemPath, remainingDepth)
+			end
+		end)
+
+		if ok then
+			table.insert(results, { path = targetRobloxPath, success = true })
 		else
-			-- Targeted update: validate path is reachable and save just the target
-			local relativeSegments = getRelativeSegments(entry.robloxPath, targetRobloxPath)
-			local targetDepth = #relativeSegments
-
-			-- Validate the path is reachable (not inside a serialized file)
-			local targetInstance = validateAndResolveTarget(game, entry.robloxPath, relativeSegments, effectiveMaxDepth)
-
-			-- Calculate filesystem path for this specific target
-			local targetFilesystemPath =
-				buildTargetFilesystemPath(entry.filesystemPath, relativeSegments, targetInstance, targetDepth, effectiveMaxDepth)
-
-			-- Calculate remaining expansion depth for this target
-			local remainingDepth = effectiveMaxDepth - targetDepth
-
-			print(`[placefs] Saving: {targetRobloxPath} -> {targetFilesystemPath}`)
-			save_asset(game, targetRobloxPath, targetFilesystemPath, remainingDepth)
+			table.insert(results, { path = targetRobloxPath, success = false, error = tostring(err) })
 		end
 	end
 
-	print("[placefs] Update complete.")
+	return printSummary(results)
 end
