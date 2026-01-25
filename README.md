@@ -102,6 +102,10 @@ lune run main -- game.Workspace.Maps.Level1.Props
 ## Example output
 
 ```
+[placefs] Downloading place 123456789...
+[placefs] Downloaded 2.4 MB in 3.2s
+[placefs] Deserializing place...
+[placefs] Deserialized in 0.8s
 [placefs] Updating 3 instances...
 [placefs] Saving: game.Workspace.Maps -> ./assets/maps
 [placefs] Saving: game.Workspace.Parts -> ./assets/parts.rbxm
