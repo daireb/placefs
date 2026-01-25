@@ -5,10 +5,17 @@ local update_assets = require("./lib/update_assets")
 local load_sync_config = require("./lib/load_sync_config")
 local normalizeRobloxPath = require("./lib/normalize_path")
 
+-- Route subcommands before normal arg parsing
+if process.args[1] == "setup" then
+	local configPath = process.args[2] -- optional custom path
+	require("./lib/setup")(configPath)
+	return nil
+end
+
 -- Parse command line arguments
 local args = parseArgs({
 	name = "placefs",
-	version = "0.3.1",
+	version = "0.4.0",
 	description = "Sync Roblox instances from a published place to your local filesystem",
 	flags = {
 		all = { short = "a", description = "Update all mapped assets" },
@@ -19,6 +26,8 @@ local args = parseArgs({
 		config = { short = "c", description = "Path to config file", default = "placefs.toml" },
 	},
 	examples = {
+		"pesde run placefs -- setup",
+		"pesde run placefs -- setup ./configs/dev.toml",
 		"pesde run placefs -- game.Workspace.Maps game.Workspace.Parts",
 		"pesde run placefs -- --all",
 		"pesde run placefs -- --dry-run --all",

@@ -21,21 +21,29 @@ placefs = { repo = "https://github.com/daireb/placefs", rev = "main" }
 
 ## Setup
 
-1. Create a `placefs.toml` in your project root:
+Run the setup command to create a config file:
+
+```bash
+pesde run placefs -- setup
+```
+
+This will prompt for your place ID, verify you have access, and create `placefs.toml`.
+
+You can also specify a custom path:
+
+```bash
+pesde run placefs -- setup ./configs/dev.toml
+```
+
+Then edit the generated file to add your asset mappings:
 
 ```toml
 [settings]
-placeId = 123456789  # Your published place ID
+placeId = 123456789
 
 [[assets]]
 robloxPath = "game.Workspace.Map"
 filesystemPath = "./assets/map.rbxm"
-```
-
-2. (Optional) Set your Roblox auth cookie as an environment variable if the auto-import fails:
-
-```bash
-export ROBLOSECURITY="your_cookie_here"
 ```
 
 ## Usage
