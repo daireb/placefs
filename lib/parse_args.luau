@@ -23,6 +23,17 @@ export type OptionDef = {
 }
 
 --[[
+	Represents a subcommand shown in help text.
+	Subcommands are routed before arg parsing, so this is purely for display.
+]]
+export type SubcommandDef = {
+	--- Usage hint shown after the subcommand name (e.g., "[PATH]")
+	args: string?,
+	--- Description shown in help text
+	description: string,
+}
+
+--[[
 	Configuration for the argument parser.
 ]]
 export type ParserConfig = {
@@ -32,6 +43,8 @@ export type ParserConfig = {
 	version: string,
 	--- Description shown in help text
 	description: string,
+	--- Subcommand definitions (for help text only)
+	subcommands: { [string]: SubcommandDef }?,
 	--- Flag definitions (boolean options)
 	flags: { [string]: FlagDef }?,
 	--- Option definitions (key-value options)
@@ -58,8 +71,30 @@ local function printHelp(config: ParserConfig)
 	print("")
 	print("USAGE:")
 	print(`    pesde run {config.name} -- [OPTIONS] [PATHS...]`)
-	print(`    pesde run {config.name} -- --all`)
+	print(`    pesde run {config.name} -- <SUBCOMMAND>`)
 	print("")
+
+	if config.subcommands then
+		print("SUBCOMMANDS:")
+
+		local subcmdLines: { { name: string, desc: string } } = {}
+		for name, def in config.subcommands do
+			local display = if def.args then `{name} {def.args}` else name
+			table.insert(subcmdLines, { name = display, desc = def.description })
+		end
+
+		table.sort(subcmdLines, function(a, b)
+			return a.name < b.name
+		end)
+
+		for _, line in subcmdLines do
+			local padding = string.rep(" ", math.max(1, 22 - #line.name))
+			print(`    {line.name}{padding}{line.desc}`)
+		end
+
+		print("")
+	end
+
 	print("OPTIONS:")
 
 	-- Collect all options for display

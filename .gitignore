@@ -6,3 +6,6 @@
 # PlaceFS config
 placefs.toml
 /assets
+
+# Rojo
+*.project.json

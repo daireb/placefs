@@ -46,6 +46,36 @@ robloxPath = "game.Workspace.Map"
 filesystemPath = "./assets/map.rbxm"
 ```
 
+## Generating a Rojo project
+
+Generate a `placefs.project.json` from your config:
+
+```bash
+pesde run placefs -- project
+```
+
+Or from a custom config file:
+
+```bash
+pesde run placefs -- project ./configs/dev.toml
+```
+
+This creates a [Rojo](https://rojo.space/) project file that maps your assets back to their Roblox locations, enabling a round-trip workflow:
+
+```bash
+# Pull assets from Roblox to your filesystem
+pesde run placefs -- --all
+
+# Generate a Rojo project from your config
+pesde run placefs -- project
+
+# Build back into a place file
+rojo build placefs.project.json -o output.rbxl
+
+# Or live-sync to Roblox Studio
+rojo serve placefs.project.json
+```
+
 ## Usage
 
 Update specific instances:

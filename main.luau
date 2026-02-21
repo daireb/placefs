@@ -12,11 +12,21 @@ if process.args[1] == "setup" then
 	return nil
 end
 
+if process.args[1] == "project" then
+	local configPath = process.args[2] -- optional custom path
+	require("./lib/generate_project")(configPath)
+	return nil
+end
+
 -- Parse command line arguments
 local args = parseArgs({
 	name = "placefs",
-	version = "0.4.0",
+	version = "0.5.0",
 	description = "Sync Roblox instances from a published place to your local filesystem",
+	subcommands = {
+		setup = { args = "[PATH]", description = "Create a new placefs.toml config file" },
+		project = { args = "[PATH]", description = "Generate a Rojo project file from your config" },
+	},
 	flags = {
 		all = { short = "a", description = "Update all mapped assets" },
 		["dry-run"] = { short = "n", description = "Preview changes without writing files" },
@@ -26,11 +36,11 @@ local args = parseArgs({
 		config = { short = "c", description = "Path to config file", default = "placefs.toml" },
 	},
 	examples = {
-		"pesde run placefs -- setup",
-		"pesde run placefs -- setup ./configs/dev.toml",
 		"pesde run placefs -- game.Workspace.Maps game.Workspace.Parts",
 		"pesde run placefs -- --all",
 		"pesde run placefs -- --dry-run --all",
+		"pesde run placefs -- setup",
+		"pesde run placefs -- project",
 	},
 })
 
