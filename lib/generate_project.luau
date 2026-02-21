@@ -51,6 +51,14 @@ local function buildTree(assetMap: Types.AssetMap): { [string]: any }
 
 			if isLast then
 				current[segment]["$path"] = entry.filesystemPath
+				-- Rojo errors when $className and $path both point to a file,
+				-- since the file already carries class information.
+				-- Only directories (folder expansion) can coexist with $className.
+				local isFilePath = entry.filesystemPath:sub(-5) == ".rbxm"
+					or entry.filesystemPath:sub(-6) == ".rbxmx"
+				if isFilePath then
+					current[segment]["$className"] = nil
+				end
 			else
 				current = current[segment]
 			end

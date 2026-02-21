@@ -21,7 +21,7 @@ end
 -- Parse command line arguments
 local args = parseArgs({
 	name = "placefs",
-	version = "0.5.0",
+	version = "0.5.1",
 	description = "Sync Roblox instances from a published place to your local filesystem",
 	subcommands = {
 		setup = { args = "[PATH]", description = "Create a new placefs.toml config file" },
