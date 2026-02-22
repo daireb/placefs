@@ -6,7 +6,6 @@ local stdio = require("@lune/stdio")
 local get_auth_cookie = require("./get_auth_cookie")
 local download_place = require("./download_place")
 
-local DEFAULT_CONFIG_PATH = "placefs.toml"
 local CONFIG_HEADER = "# placefs configuration file\n\n"
 
 --- Prompts the user for a place ID and validates the input
@@ -80,10 +79,9 @@ local function writeConfig(placeId: number, configPath: string)
 end
 
 --- Main setup flow
---- @param configPath optional path for the config file (defaults to placefs.toml)
-return function(configPath: string?)
-	local targetPath = configPath or DEFAULT_CONFIG_PATH
+--- @param configPath path for the config file (provided by --config, defaults to placefs.toml)
+return function(configPath: string)
 	local placeId = promptPlaceId()
 	verifyPlaceAccess(placeId)
-	writeConfig(placeId, targetPath)
+	writeConfig(placeId, configPath)
 end

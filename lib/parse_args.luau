@@ -23,18 +23,23 @@ export type OptionDef = {
 }
 
 --[[
-	Represents a subcommand shown in help text.
-	Subcommands are routed before arg parsing, so this is purely for display.
+	Represents a subcommand with its own flags and options.
 ]]
-export type SubcommandDef = {
-	--- Usage hint shown after the subcommand name (e.g., "[PATH]")
-	args: string?,
+export type SubcommandConfig = {
 	--- Description shown in help text
 	description: string,
+	--- Subcommand-specific flag definitions
+	flags: { [string]: FlagDef }?,
+	--- Subcommand-specific option definitions
+	options: { [string]: OptionDef }?,
 }
 
 --[[
 	Configuration for the argument parser.
+
+	Top-level `options` are shared across all commands (including subcommands).
+	Top-level `flags` apply only to the default command (no subcommand).
+	Subcommands define their own flags/options via `SubcommandConfig`.
 ]]
 export type ParserConfig = {
 	--- Name of the CLI tool
@@ -43,11 +48,11 @@ export type ParserConfig = {
 	version: string,
 	--- Description shown in help text
 	description: string,
-	--- Subcommand definitions (for help text only)
-	subcommands: { [string]: SubcommandDef }?,
-	--- Flag definitions (boolean options)
+	--- Subcommand definitions with their flags/options
+	subcommands: { [string]: SubcommandConfig }?,
+	--- Flag definitions for the default command
 	flags: { [string]: FlagDef }?,
-	--- Option definitions (key-value options)
+	--- Shared option definitions (available to all commands)
 	options: { [string]: OptionDef }?,
 	--- Usage examples shown in help text
 	examples: { string }?,
@@ -57,6 +62,8 @@ export type ParserConfig = {
 	Result of parsing command line arguments.
 ]]
 export type ParsedArgs = {
+	--- The subcommand that was invoked, if any
+	subcommand: string?,
 	--- Boolean flags that were set
 	flags: { [string]: boolean },
 	--- Options with their values
@@ -65,13 +72,65 @@ export type ParsedArgs = {
 	positionals: { string },
 }
 
+--- Renders a list of flag/option lines with aligned descriptions.
+local function printOptionLines(lines: { { short: string?, long: string, desc: string } })
+	table.sort(lines, function(a, b)
+		return a.long < b.long
+	end)
+
+	for _, line in lines do
+		local shortPart = if line.short then `-{line.short}, ` else "    "
+		local longPart = `--{line.long}`
+		local padding = string.rep(" ", math.max(1, 22 - #longPart))
+		print(`    {shortPart}{longPart}{padding}{line.desc}`)
+	end
+end
+
+--- Collects flag/option definitions into display lines.
+local function collectOptionLines(
+	flags: { [string]: FlagDef }?,
+	options: { [string]: OptionDef }?
+): { { short: string?, long: string, desc: string } }
+	local lines: { { short: string?, long: string, desc: string } } = {}
+
+	if flags then
+		for name, def in flags do
+			table.insert(lines, {
+				short = def.short,
+				long = name,
+				desc = def.description,
+			})
+		end
+	end
+
+	if options then
+		for name, def in options do
+			local desc = def.description
+			if def.default then
+				desc = `{desc} (default: {def.default})`
+			end
+			table.insert(lines, {
+				short = def.short,
+				long = `{name} <VALUE>`,
+				desc = desc,
+			})
+		end
+	end
+
+	return lines
+end
+
 local function printHelp(config: ParserConfig)
 	print(`{config.name} v{config.version}`)
 	print(config.description)
 	print("")
 	print("USAGE:")
 	print(`    pesde run {config.name} -- [OPTIONS] [PATHS...]`)
-	print(`    pesde run {config.name} -- <SUBCOMMAND>`)
+
+	if config.subcommands then
+		print(`    pesde run {config.name} -- <SUBCOMMAND> [OPTIONS]`)
+	end
+
 	print("")
 
 	if config.subcommands then
@@ -79,8 +138,7 @@ local function printHelp(config: ParserConfig)
 
 		local subcmdLines: { { name: string, desc: string } } = {}
 		for name, def in config.subcommands do
-			local display = if def.args then `{name} {def.args}` else name
-			table.insert(subcmdLines, { name = display, desc = def.description })
+			table.insert(subcmdLines, { name = name, desc = def.description })
 		end
 
 		table.sort(subcmdLines, function(a, b)
@@ -95,56 +153,29 @@ local function printHelp(config: ParserConfig)
 		print("")
 	end
 
+	-- Main OPTIONS section: shared options + default command flags + built-in
+	local mainLines = collectOptionLines(config.flags, config.options)
+	table.insert(mainLines, { short = "h", long = "help", desc = "Show this help message" })
+	table.insert(mainLines, { short = "v", long = "version", desc = "Show version" })
+
 	print("OPTIONS:")
+	printOptionLines(mainLines)
 
-	-- Collect all options for display
-	local lines: { { short: string?, long: string, desc: string } } = {}
+	-- Per-subcommand option sections
+	if config.subcommands then
+		for name, subcmd in config.subcommands do
+			local hasFlags = subcmd.flags and next(subcmd.flags) ~= nil
+			local hasOptions = subcmd.options and next(subcmd.options) ~= nil
 
-	-- Add user-defined flags
-	if config.flags then
-		for name, def in config.flags do
-			table.insert(lines, {
-				short = def.short,
-				long = name,
-				desc = def.description,
-			})
-		end
-	end
-
-	-- Add user-defined options
-	if config.options then
-		for name, def in config.options do
-			local desc = def.description
-			if def.default then
-				desc = `{desc} (default: {def.default})`
+			if hasFlags or hasOptions then
+				local subcmdLines = collectOptionLines(subcmd.flags, subcmd.options)
+				print("")
+				print(`{string.upper(name)} OPTIONS:`)
+				printOptionLines(subcmdLines)
 			end
-			table.insert(lines, {
-				short = def.short,
-				long = `{name} <VALUE>`,
-				desc = desc,
-			})
 		end
 	end
 
-	-- Add built-in flags
-	table.insert(lines, { short = "h", long = "help", desc = "Show this help message" })
-	table.insert(lines, { short = "v", long = "version", desc = "Show version" })
-
-	-- Sort by long name
-	table.sort(lines, function(a, b)
-		return a.long < b.long
-	end)
-
-	-- Print formatted options
-	for _, line in lines do
-		local shortPart = if line.short then `-{line.short}, ` else "    "
-		local longPart = `--{line.long}`
-		-- Pad to align descriptions
-		local padding = string.rep(" ", math.max(1, 22 - #longPart))
-		print(`    {shortPart}{longPart}{padding}{line.desc}`)
-	end
-
-	-- Print examples if provided
 	if config.examples and #config.examples > 0 then
 		print("")
 		print("EXAMPLES:")
@@ -159,32 +190,82 @@ local function printVersion(config: ParserConfig)
 end
 
 --[[
+	Resolves the effective flags and options for parsing, based on whether
+	a subcommand was detected. Subcommand-specific flags/options are merged
+	with the shared top-level options.
+]]
+local function resolveEffectiveConfig(
+	config: ParserConfig,
+	subcommandName: string?
+): ({ [string]: FlagDef }?, { [string]: OptionDef }?)
+	local effectiveFlags: { [string]: FlagDef }? = nil
+	local effectiveOptions: { [string]: OptionDef }? = nil
+
+	if subcommandName and config.subcommands then
+		local subcmd = config.subcommands[subcommandName]
+		effectiveFlags = subcmd.flags
+
+		-- Merge shared options with subcommand options
+		if config.options or (subcmd.options and next(subcmd.options) ~= nil) then
+			effectiveOptions = {}
+			if config.options then
+				for k, v in config.options do
+					effectiveOptions[k] = v
+				end
+			end
+			if subcmd.options then
+				for k, v in subcmd.options do
+					effectiveOptions[k] = v
+				end
+			end
+		end
+	else
+		effectiveFlags = config.flags
+		effectiveOptions = config.options
+	end
+
+	return effectiveFlags, effectiveOptions
+end
+
+--[[
 	Parse command line arguments according to the provided configuration.
-	
-	Handles:
-	- Long flags: --flag
-	- Short flags: -f
-	- Long options: --option=value or --option value
-	- Short options: -o=value or -o value
-	- Positional arguments
-	
-	Built-in support for --help/-h and --version/-v
+
+	If the first argument matches a registered subcommand, the parser uses
+	that subcommand's flags/options (merged with shared top-level options).
+	Otherwise, top-level flags and options are used (default command).
+
+	Built-in support for --help/-h and --version/-v.
 ]]
 local function parseArgs(config: ParserConfig): ParsedArgs
+	local subcommand: string? = nil
 	local flags: { [string]: boolean } = {}
 	local options: { [string]: string } = {}
 	local positionals: { string } = {}
 
+	-- Detect subcommand: first arg that isn't a flag
+	local rawArgs = process.args
+	local startIndex = 1
+
+	if #rawArgs > 0 and string.sub(rawArgs[1], 1, 1) ~= "-" then
+		if config.subcommands and config.subcommands[rawArgs[1]] then
+			subcommand = rawArgs[1]
+			startIndex = 2
+		end
+	end
+
+	-- Resolve which flags/options apply
+	local effectiveFlags, effectiveOptions = resolveEffectiveConfig(config, subcommand)
+
 	-- Initialize flags to false
-	if config.flags then
-		for name in config.flags do
+	if effectiveFlags then
+		for name in effectiveFlags do
 			flags[name] = false
 		end
 	end
 
 	-- Initialize options with defaults
-	if config.options then
-		for name, def in config.options do
+	if effectiveOptions then
+		for name, def in effectiveOptions do
 			if def.default then
 				options[name] = def.default
 			end
@@ -195,27 +276,26 @@ local function parseArgs(config: ParserConfig): ParsedArgs
 	local shortToFlag: { [string]: string } = {}
 	local shortToOption: { [string]: string } = {}
 
-	if config.flags then
-		for name, def in config.flags do
+	if effectiveFlags then
+		for name, def in effectiveFlags do
 			if def.short then
 				shortToFlag[def.short] = name
 			end
 		end
 	end
 
-	if config.options then
-		for name, def in config.options do
+	if effectiveOptions then
+		for name, def in effectiveOptions do
 			if def.short then
 				shortToOption[def.short] = name
 			end
 		end
 	end
 
-	local args = process.args
-	local i = 1
+	local i = startIndex
 
-	while i <= #args do
-		local arg = args[i]
+	while i <= #rawArgs do
+		local arg = rawArgs[i]
 
 		if arg == "--help" or arg == "-h" then
 			printHelp(config)
@@ -224,46 +304,40 @@ local function parseArgs(config: ParserConfig): ParsedArgs
 			printVersion(config)
 			process.exit(0)
 		elseif string.sub(arg, 1, 2) == "--" then
-			-- Long form: --flag or --option=value or --option value
 			local rest = string.sub(arg, 3)
 			local eqPos = string.find(rest, "=")
 
 			if eqPos then
-				-- --option=value format
 				local name = string.sub(rest, 1, eqPos - 1)
 				local value = string.sub(rest, eqPos + 1)
 
-				if config.options and config.options[name] then
+				if effectiveOptions and effectiveOptions[name] then
 					options[name] = value
-				elseif config.flags and config.flags[name] then
+				elseif effectiveFlags and effectiveFlags[name] then
 					error(`Flag --{name} does not accept a value. Use --{name} without '='.`)
 				else
 					error(`Unknown option: --{name}. Use --help for usage information.`)
 				end
 			else
-				-- --flag or --option value format
 				local name = rest
 
-				if config.flags and config.flags[name] then
+				if effectiveFlags and effectiveFlags[name] then
 					flags[name] = true
-				elseif config.options and config.options[name] then
-					-- Expect next argument to be the value
+				elseif effectiveOptions and effectiveOptions[name] then
 					i += 1
-					if i > #args then
+					if i > #rawArgs then
 						error(`Option --{name} requires a value.`)
 					end
-					options[name] = args[i]
+					options[name] = rawArgs[i]
 				else
 					error(`Unknown option: --{name}. Use --help for usage information.`)
 				end
 			end
 		elseif string.sub(arg, 1, 1) == "-" and #arg > 1 then
-			-- Short form: -f or -o=value or -o value
 			local rest = string.sub(arg, 2)
 			local eqPos = string.find(rest, "=")
 
 			if eqPos then
-				-- -o=value format
 				local short = string.sub(rest, 1, eqPos - 1)
 				local value = string.sub(rest, eqPos + 1)
 
@@ -275,24 +349,21 @@ local function parseArgs(config: ParserConfig): ParsedArgs
 					error(`Unknown option: -{short}. Use --help for usage information.`)
 				end
 			else
-				-- -f or -o value format
 				local short = rest
 
 				if shortToFlag[short] then
 					flags[shortToFlag[short]] = true
 				elseif shortToOption[short] then
-					-- Expect next argument to be the value
 					i += 1
-					if i > #args then
+					if i > #rawArgs then
 						error(`Option -{short} requires a value.`)
 					end
-					options[shortToOption[short]] = args[i]
+					options[shortToOption[short]] = rawArgs[i]
 				else
 					error(`Unknown option: -{short}. Use --help for usage information.`)
 				end
 			end
 		else
-			-- Positional argument
 			table.insert(positionals, arg)
 		end
 
@@ -300,6 +371,7 @@ local function parseArgs(config: ParserConfig): ParsedArgs
 	end
 
 	return {
+		subcommand = subcommand,
 		flags = flags,
 		options = options,
 		positionals = positionals,

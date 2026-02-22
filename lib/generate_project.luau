@@ -5,9 +5,6 @@ local serde = require("@lune/serde")
 local Types = require("./Types")
 local load_sync_config = require("./load_sync_config")
 
-local DEFAULT_CONFIG_PATH = "placefs.toml"
-local OUTPUT_FILENAME = "placefs.project.json"
-
 local SERVICES: { [string]: boolean } = {
 	Workspace = true,
 	ReplicatedStorage = true,
@@ -23,6 +20,13 @@ local SERVICES: { [string]: boolean } = {
 	Teams = true,
 	TextChatService = true,
 }
+
+--- Extracts the base name from a config path by stripping directory and .toml extension.
+--- e.g. "placefs.toml" -> "placefs", "configs/builder.toml" -> "builder"
+local function deriveBaseName(configPath: string): string
+	local filename = configPath:match("([^/\\]+)$") or configPath
+	return filename:match("(.+)%.toml$") or filename
+end
 
 --- Builds a Rojo project tree from an asset map.
 --- Each asset entry's robloxPath is split into segments and nested into
@@ -69,18 +73,23 @@ local function buildTree(assetMap: Types.AssetMap): { [string]: any }
 end
 
 --- Generates a Rojo project file from the placefs configuration.
-return function(configPath: string?)
-	local resolvedConfigPath = process.cwd .. (configPath or DEFAULT_CONFIG_PATH)
+--- @param configPath Path to the config file (from --config)
+--- @param outputPath Optional explicit output path (from --output); derived from config name if nil
+return function(configPath: string, outputPath: string?)
+	local resolvedConfigPath = process.cwd .. configPath
 	local config = load_sync_config(resolvedConfigPath)
 
+	local baseName = deriveBaseName(configPath)
+	local outputFilename = outputPath or (baseName .. ".project.json")
+
 	local project = {
-		name = "placefs",
+		name = baseName,
 		tree = buildTree(config.map),
 	}
 
 	local json = serde.encode("json", project, true)
-	local outputPath = process.cwd .. OUTPUT_FILENAME
+	local fullOutputPath = process.cwd .. outputFilename
 
-	fs.writeFile(outputPath, json)
-	print(`[placefs] Generated {OUTPUT_FILENAME}`)
+	fs.writeFile(fullOutputPath, json)
+	print(`[placefs] Generated {outputFilename}`)
 end

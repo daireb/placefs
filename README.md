@@ -29,10 +29,10 @@ pesde run placefs -- setup
 
 This will prompt for your place ID, verify you have access, and create `placefs.toml`.
 
-You can also specify a custom path:
+You can specify a custom config path with `-c`:
 
 ```bash
-pesde run placefs -- setup ./configs/dev.toml
+pesde run placefs -- setup -c builder.toml
 ```
 
 Then edit the generated file to add your asset mappings:
@@ -48,16 +48,18 @@ filesystemPath = "./assets/map.rbxm"
 
 ## Generating a Rojo project
 
-Generate a `placefs.project.json` from your config:
+Generate a Rojo project file from your config:
 
 ```bash
 pesde run placefs -- project
 ```
 
-Or from a custom config file:
+This reads `placefs.toml` and generates `placefs.project.json`. The output filename is derived from the config name, so different configs produce different project files:
 
 ```bash
-pesde run placefs -- project ./configs/dev.toml
+pesde run placefs -- project                        # placefs.toml -> placefs.project.json
+pesde run placefs -- project -c builder.toml        # builder.toml -> builder.project.json
+pesde run placefs -- project -o custom.project.json # explicit output name
 ```
 
 This creates a [Rojo](https://rojo.space/) project file that maps your assets back to their Roblox locations, enabling a round-trip workflow:
@@ -90,28 +92,37 @@ Update all mapped assets:
 pesde run placefs -- --all
 ```
 
-### CLI Options
+### CLI Reference
 
 ```
+SUBCOMMANDS:
+    setup                 Create a new config file
+    project               Generate a Rojo project file from your config
+
 OPTIONS:
     -a, --all              Update all mapped assets
-    -c, --config <PATH>    Path to config file (default: placefs.toml)
+    -c, --config <VALUE>   Path to config file (default: placefs.toml)
     -n, --dry-run          Preview changes without writing files
+    -h, --help             Show this help message
     -q, --quiet            Suppress output except errors
-    -h, --help             Show help message
     -v, --version          Show version
+
+PROJECT OPTIONS:
+    -o, --output <VALUE>   Output file path (derived from config name)
+```
+
+The `-c`/`--config` option is shared across all commands:
+
+```bash
+pesde run placefs -- -c builder.toml --all
+pesde run placefs -- setup -c builder.toml
+pesde run placefs -- project -c builder.toml
 ```
 
 Preview what would be saved without writing files:
 
 ```bash
 pesde run placefs -- --dry-run --all
-```
-
-Use a custom config file:
-
-```bash
-pesde run placefs -- --config custom.toml --all
 ```
 
 ### Running directly
@@ -172,6 +183,28 @@ pesde run placefs -- game.Workspace.Maps.Level1
 
 # Update a deeply nested instance
 pesde run placefs -- game.Workspace.Maps.Level1.Props
+```
+
+## Multi-place workflow
+
+placefs supports syncing from multiple Roblox places using separate config files. Use `-c` to target a specific config across all commands:
+
+```bash
+# Set up configs for each place
+pesde run placefs -- setup                     # -> placefs.toml
+pesde run placefs -- setup -c builder.toml     # -> builder.toml
+
+# Sync assets from each place
+pesde run placefs -- --all                     # uses placefs.toml
+pesde run placefs -- -c builder.toml --all     # uses builder.toml
+
+# Generate Rojo projects (output names derived automatically)
+pesde run placefs -- project                   # -> placefs.project.json
+pesde run placefs -- project -c builder.toml   # -> builder.project.json
+
+# Build each into a place file
+rojo build placefs.project.json -o main.rbxl
+rojo build builder.project.json -o builder.rbxl
 ```
 
 ## Example output
