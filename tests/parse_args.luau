@@ -43,32 +43,38 @@ end
 return function()
 	-- Subcommand as the first argument
 	local args = parse({ "places" })
-	assert(args.subcommand == "places")
-	assert(#args.positionals == 0)
+	assert(args.subcommand == "places", "a leading subcommand should be recognised")
+	assert(#args.positionals == 0, "a subcommand should leave no positionals")
 
 	-- Subcommand after a long option with a separate value
 	args = parse({ "--config", "other.toml", "places" })
 	assert(args.subcommand == "places", "subcommand should be found after --config <value>")
-	assert(args.options.config == "other.toml")
+	assert(args.options.config == "other.toml", "the option value should still be captured")
 	assert(#args.positionals == 0, "subcommand token must not leak into positionals")
 
 	-- Subcommand after a short option with a separate value
 	args = parse({ "-c", "other.toml", "places" })
 	assert(args.subcommand == "places", "subcommand should be found after -c <value>")
-	assert(args.options.config == "other.toml")
+	assert(args.options.config == "other.toml", "the short option value should still be captured")
 
 	-- Subcommand after inline option values
 	args = parse({ "--config=other.toml", "places" })
-	assert(args.subcommand == "places" and args.options.config == "other.toml")
+	assert(
+		args.subcommand == "places" and args.options.config == "other.toml",
+		"subcommand should be found after --config=<value>"
+	)
 
 	args = parse({ "-c=other.toml", "places" })
-	assert(args.subcommand == "places" and args.options.config == "other.toml")
+	assert(
+		args.subcommand == "places" and args.options.config == "other.toml",
+		"subcommand should be found after -c=<value>"
+	)
 
 	-- An option value that happens to match a subcommand name is still a value
 	args = parse({ "-c", "places", "--all" })
 	assert(args.subcommand == nil, "option value must not be treated as a subcommand")
-	assert(args.options.config == "places")
-	assert(args.flags.all == true)
+	assert(args.options.config == "places", "the option value should be the subcommand-like word")
+	assert(args.flags.all == true, "the trailing flag should still parse")
 
 	-- A flag before the subcommand does not consume it. Top-level flags belong
 	-- to the default command only, so this now reports a clear error instead of
@@ -77,20 +83,23 @@ return function()
 
 	-- The first bare argument decides: a non-subcommand word stays positional
 	args = parse({ "foo", "places" })
-	assert(args.subcommand == nil)
-	assert(#args.positionals == 2 and args.positionals[1] == "foo" and args.positionals[2] == "places")
+	assert(args.subcommand == nil, "a non-subcommand first word means no subcommand")
+	assert(
+		#args.positionals == 2 and args.positionals[1] == "foo" and args.positionals[2] == "places",
+		"both words should remain positionals"
+	)
 
 	-- Default command with positionals
 	args = parse({ "game.Workspace.Map", "assets/thing" })
-	assert(args.subcommand == nil)
-	assert(#args.positionals == 2)
+	assert(args.subcommand == nil, "paths should not be read as a subcommand")
+	assert(#args.positionals == 2, "both paths should be positionals")
 	assert(args.options.config == "placefs.toml", "default should apply")
 	assert(args.flags.all == false, "flags default to false")
 
 	-- Shared options remain available after a subcommand
 	args = parse({ "project", "-c", "other.toml", "-o", "out.json" })
-	assert(args.subcommand == "project")
-	assert(args.options.config == "other.toml")
+	assert(args.subcommand == "project", "the subcommand should be recognised")
+	assert(args.options.config == "other.toml", "shared options should parse after a subcommand")
 	assert(args.options.output == "out.json", "subcommand-specific option should parse")
 
 	-- Subcommand-specific options are rejected on the default command

@@ -256,6 +256,14 @@ lune run tests/run
 
 The suite is dependency-free and needs no network access. It covers argument parsing, config loading, target resolution, instance-name validation, and a set of end-to-end checks that invoke the CLI as a subprocess to assert exit codes and error output.
 
+Formatting and linting are pinned in `rokit.toml`, so run `rokit install` once and then:
+
+```bash
+stylua .          # format
+stylua --check .  # verify formatting without writing
+selene .          # lint
+```
+
 ## Upgrading from 0.x
 
 The 0.x single-place config shape is no longer accepted, and placefs reports a migration error if it finds one. See the [CHANGELOG](CHANGELOG.md) for the before-and-after config.

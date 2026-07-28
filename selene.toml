@@ -1,1 +1,4 @@
 std = "luau"
+
+# Vendored pesde dependencies are gitignored, but selene does not read .gitignore
+exclude = ["luau_packages/**", "lune_packages/**"]
