@@ -6,6 +6,32 @@ placefs is built for pulling the latest work from team-create builder places int
 
 Built with [Lune](https://lune-org.github.io/docs).
 
+## Quick start
+
+```bash
+pesde add gh#daireb/placefs#v1.0.0
+pesde run placefs -- setup          # prompts for a place name and ID
+```
+
+Then add your mappings to the generated `placefs.toml`:
+
+```toml
+[places.maps]
+placeId = 84209236309122
+
+[places.maps.assets]
+"game.Workspace.Story" = "./assets/maps/story"
+"game.Workspace.Props" = "./assets/props.rbxm"
+```
+
+And pull everything down:
+
+```bash
+pesde run placefs -- --all
+```
+
+placefs authenticates with the cookie from your Roblox Studio installation, so if you are logged into Studio there is nothing else to configure.
+
 ## Installation
 
 ```bash
@@ -19,39 +45,9 @@ Or add to your `pesde.toml`:
 placefs = { repo = "https://github.com/daireb/placefs", rev = "v1.0.0" }
 ```
 
-## Authentication
-
-placefs downloads places as the logged-in user, so it needs a `.ROBLOSECURITY` cookie. It reads the cookie from your local Roblox Studio installation first, and falls back to the `ROBLOSECURITY` environment variable when Studio is unavailable:
-
-```bash
-ROBLOSECURITY="$ROBLOX_COOKIE" pesde run placefs -- --all
-```
-
-The environment variable accepts either a bare token or the full `.ROBLOSECURITY=...` form, which makes placefs usable on CI runners and other machines without Studio installed.
-
-## Setup
-
-Run setup and enter a short name and Roblox place ID:
-
-```bash
-pesde run placefs -- setup
-```
-
-This verifies access and creates `placefs.toml`. Run it again to append another place without rewriting existing comments:
-
-```bash
-pesde run placefs -- setup
-```
-
-Use `-c` for a separate config, such as a personal scratch place:
-
-```bash
-pesde run placefs -- setup -c ~/scratch-placefs.toml
-```
-
 ## Configuration
 
-Places are keyed by the names used with `--place`:
+Each place is a named section, and its mappings live in a table keyed by Roblox path:
 
 ```toml
 [settings]
@@ -60,42 +56,46 @@ maxExpansionDepth = 2 # optional global default
 [places.maps]
 placeId = 84209236309122
 
-[[places.maps.assets]]
-robloxPath = "game.Workspace.Story"
-filesystemPath = "./assets/maps/story"
-maxExpansionDepth = 1
+[places.maps.assets]
+"game.Workspace.Story" = { path = "./assets/maps/story", maxExpansionDepth = 1 }
+"game.Workspace.Props" = "./assets/props.rbxm"
 
 [places.lobby]
 placeId = 92665231529109
 
-[[places.lobby.assets]]
-robloxPath = "game.Workspace.Map"
-filesystemPath = "./assets/maps/Lobby.rbxm"
+[places.lobby.assets]
+"game.Workspace.Map" = "./assets/maps/Lobby.rbxm"
 ```
 
-Place names may contain letters, numbers, hyphens, and underscores.
+The name you give a place is what you pass to `--place`, and it may contain letters, numbers, hyphens, and underscores.
 
-`maxExpansionDepth` can be set globally, per place, or per asset. The most specific value wins; the built-in default is 2.
+Keys must be quoted, because TOML treats an unquoted dot as nesting. A value is either a filesystem path on its own, or a table when you need per-mapping options:
+
+| Value form | Use |
+| --- | --- |
+| `"./assets/props.rbxm"` | Just a destination, everything else defaults |
+| `{ path = "...", maxExpansionDepth = 1 }` | A destination plus options |
+
+`maxExpansionDepth` can be set globally in `[settings]`, per place, or per mapping. The most specific value wins, and the built-in default is 2.
+
+placefs rejects keys it does not recognise, so a misspelled or invented section is reported as an error rather than silently ignored.
 
 ### Single-file assets
 
-Use a `.rbxm` or `.rbxmx` destination to serialize an entire instance tree as one file:
+A `.rbxm` or `.rbxmx` destination serializes an entire instance tree into one file:
 
 ```toml
-[[places.maps.assets]]
-robloxPath = "game.Workspace.Parts"
-filesystemPath = "./assets/parts.rbxm"
+[places.maps.assets]
+"game.Workspace.Parts" = "./assets/parts.rbxm"
 ```
 
 ### Folder expansion
 
-Use a destination without a model extension to expand a Folder into a matching directory tree:
+A destination without a model extension expands a Folder into a matching directory tree:
 
 ```toml
-[[places.maps.assets]]
-robloxPath = "game.Workspace.Maps"
-filesystemPath = "./assets/maps"
-maxExpansionDepth = 2
+[places.maps.assets]
+"game.Workspace.Maps" = { path = "./assets/maps", maxExpansionDepth = 2 }
 ```
 
 This creates:
@@ -110,6 +110,22 @@ assets/maps/
 ```
 
 Folder children become filesystem segments exactly as named. Names containing `/`, `\`, or ending in `.rbxm`/`.rbxmx` are rejected because they cannot round-trip safely. Names containing `.` produce a warning because dotted Roblox paths cannot target them unambiguously.
+
+## Setup
+
+`setup` prompts for a place name and Roblox place ID, verifies you can access the place, and writes `placefs.toml`:
+
+```bash
+pesde run placefs -- setup
+```
+
+Run it again to append another place. Existing comments and formatting are preserved.
+
+Use `-c` for a separate config, such as a personal scratch place:
+
+```bash
+pesde run placefs -- setup -c ~/scratch-placefs.toml
+```
 
 ## Syncing
 
@@ -213,6 +229,16 @@ PROJECT OPTIONS:
 
 Errors are reported as a single `[placefs] Error: ...` line with a non-zero exit code. Set `PLACEFS_DEBUG=1` to print the full traceback instead when diagnosing a bug in the tool itself.
 
+### Authentication
+
+placefs downloads places as the logged-in user, so it needs a `.ROBLOSECURITY` cookie. It reads the cookie from your Roblox Studio installation first, and falls back to the `ROBLOSECURITY` environment variable when Studio is unavailable:
+
+```bash
+ROBLOSECURITY="$ROBLOX_COOKIE" pesde run placefs -- --all
+```
+
+The variable accepts either a bare token or the full `.ROBLOSECURITY=...` form, which makes placefs usable on CI runners and other machines without Studio installed.
+
 ### Running directly
 
 ```bash
@@ -230,29 +256,9 @@ lune run tests/run
 
 The suite is dependency-free and needs no network access. It covers argument parsing, config loading, target resolution, instance-name validation, and a set of end-to-end checks that invoke the CLI as a subprocess to assert exit codes and error output.
 
-## Migrating from 0.x
+## Upgrading from 0.x
 
-placefs 1.0 intentionally replaces one-file-per-place configuration. Move `settings.placeId` and each top-level `[[assets]]` entry under a named place:
-
-```toml
-# Before
-[settings]
-placeId = 123456789
-
-[[assets]]
-robloxPath = "game.Workspace.Map"
-filesystemPath = "./assets/map.rbxm"
-
-# After
-[places.maps]
-placeId = 123456789
-
-[[places.maps.assets]]
-robloxPath = "game.Workspace.Map"
-filesystemPath = "./assets/map.rbxm"
-```
-
-Combine additional old config files as more `[places.<name>]` sections. The loader detects the old shape and reports a migration error; it does not maintain a second compatibility path.
+The 0.x single-place config shape is no longer accepted, and placefs reports a migration error if it finds one. See the [CHANGELOG](CHANGELOG.md) for the before-and-after config.
 
 ## License
 

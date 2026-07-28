@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - First-class multi-place configs using named `[places.<name>]` sections.
+- Mappings are declared in a `[places.<name>.assets]` table keyed by Roblox path, with a plain string destination or a `{ path, maxExpansionDepth }` table.
+- Unknown configuration keys are rejected, so a misnamed section is an error instead of a mapping that silently never syncs.
+- Two keys in one place that resolve to the same Roblox path are rejected as duplicates.
 - `--place`/`-p` selection and `PLACEFS_PLACE`/`PLACEFS_CONFIG` environment defaults.
 - Filesystem-path targets, resolved back to Roblox paths within the selected place.
 - `places` subcommand for listing configured places.
@@ -28,11 +31,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Multi-place syncs isolate failures: a place that cannot be downloaded no longer aborts the places after it, and failed places are listed at the end.
 - `project` names output files after places and generates every place when none is selected.
 - `setup` appends a named place to an existing config while preserving its text.
+- Mappings within a place are processed in sorted key order, so output is deterministic.
 - Installation examples now pin the `v1.0.0` tag rather than tracking `main`.
 
 ### Breaking
 
-The 0.x one-place shape is no longer accepted:
+The 0.x one-place shape is no longer accepted. placefs detects it and reports a
+migration error; there is no compatibility path.
 
 ```toml
 # 0.x
@@ -42,19 +47,31 @@ placeId = 123456789
 [[assets]]
 robloxPath = "game.Workspace.Map"
 filesystemPath = "./assets/map.rbxm"
+
+[[assets]]
+robloxPath = "game.Workspace.Props"
+filesystemPath = "./assets/props"
+maxExpansionDepth = 1
 ```
 
-Move each old config into a named place:
+Give each old config file a place name, move `settings.placeId` onto it, and
+turn each `[[assets]]` entry into a single keyed line. An entry that only sets
+`filesystemPath` becomes a plain string; one that also sets options becomes a
+table:
 
 ```toml
 # 1.0
 [places.maps]
 placeId = 123456789
 
-[[places.maps.assets]]
-robloxPath = "game.Workspace.Map"
-filesystemPath = "./assets/map.rbxm"
+[places.maps.assets]
+"game.Workspace.Map" = "./assets/map.rbxm"
+"game.Workspace.Props" = { path = "./assets/props", maxExpansionDepth = 1 }
 ```
+
+Additional 0.x config files become further `[places.<name>]` sections in the
+same file. Note that `robloxPath` and `filesystemPath` no longer exist as keys:
+the Roblox path is the key, and the filesystem path is the value.
 
 ## [0.6.0]
 

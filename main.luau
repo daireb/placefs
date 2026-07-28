@@ -80,7 +80,8 @@ local function run()
 		for _, name in names do
 			local place = config.places[name]
 			local padding = string.rep(" ", widest - #name)
-			print(`{name}{padding}  {place.placeId}  {#place.map} assets`)
+			local count = #place.map
+			print(`{name}{padding}  {place.placeId}  {count} {if count == 1 then "asset" else "assets"}`)
 		end
 		return
 	end

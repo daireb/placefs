@@ -4,31 +4,29 @@ local process = require("@lune/process")
 local SINGLE_CONFIG = "/tmp/placefs-cli-single.toml"
 local MULTI_CONFIG = "/tmp/placefs-cli-multi.toml"
 local LEGACY_CONFIG = "/tmp/placefs-cli-legacy.toml"
+local STRAY_CONFIG = "/tmp/placefs-cli-stray.toml"
 local PROJECT_OUTPUT = "/tmp/placefs-cli-out.project.json"
 
 local SINGLE = [==[
 [places.main]
 placeId = 1234567890
 
-[[places.main.assets]]
-robloxPath = "game.Workspace.Map"
-filesystemPath = "./assets/map.rbxm"
+[places.main.assets]
+"game.Workspace.Map" = "./assets/map.rbxm"
 ]==]
 
 local MULTI = [==[
 [places.lobby]
 placeId = 222
 
-[[places.lobby.assets]]
-robloxPath = "game.Workspace.Lobby"
-filesystemPath = "./assets/lobby.rbxm"
+[places.lobby.assets]
+"game.Workspace.Lobby" = "./assets/lobby.rbxm"
 
 [places.maps]
 placeId = 111
 
-[[places.maps.assets]]
-robloxPath = "game.Workspace.Maps"
-filesystemPath = "./assets/maps.rbxm"
+[places.maps.assets]
+"game.Workspace.Maps" = { path = "./assets/maps", maxExpansionDepth = 1 }
 ]==]
 
 local LEGACY = [==[
@@ -93,6 +91,22 @@ return function()
 		expectCleanFailure({ "-c", MULTI_CONFIG, "--place", "nope", "--all" }, "Unknown place 'nope'")
 		expectCleanFailure({ "-c", LEGACY_CONFIG, "--all" }, "placefs v0 config")
 
+		-- A misnamed mapping section is a loud error, not a silently dropped mapping
+		fs.writeFile(
+			STRAY_CONFIG,
+			table.concat({
+				"[places.maps]",
+				"placeId = 111",
+				"",
+				"[places.maps.assets]",
+				'"game.Workspace.A" = "./assets/a.rbxm"',
+				"",
+				"[places.maps.instances]",
+				'"game.Workspace.B" = "./assets/b.rbxm"',
+			}, "\n")
+		)
+		expectCleanFailure({ "-c", STRAY_CONFIG, "places" }, "unknown key(s) in places.maps: instances")
+
 		-- Multi-place configs still require an explicit place for positionals
 		expectCleanFailure({ "-c", MULTI_CONFIG, "game.Workspace.Maps" }, "--place is required")
 
@@ -110,7 +124,7 @@ return function()
 		expectCleanFailure({ "-c", MULTI_CONFIG, "project", "-o", PROJECT_OUTPUT }, "--output requires --place")
 	end)
 
-	for _, path in { SINGLE_CONFIG, MULTI_CONFIG, LEGACY_CONFIG, PROJECT_OUTPUT } do
+	for _, path in { SINGLE_CONFIG, MULTI_CONFIG, LEGACY_CONFIG, STRAY_CONFIG, PROJECT_OUTPUT } do
 		if fs.isFile(path) then
 			fs.removeFile(path)
 		end

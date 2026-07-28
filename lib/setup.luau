@@ -71,10 +71,7 @@ local function encodePlace(placeName: string, placeId: number): string
 			[placeName] = {
 				placeId = placeId,
 				assets = {
-					{
-						robloxPath = "game.Workspace.MyModel",
-						filesystemPath = "./assets/my-model.rbxm",
-					},
+					["game.Workspace.MyModel"] = "./assets/my-model.rbxm",
 				},
 			},
 		},
