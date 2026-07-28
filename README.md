@@ -19,6 +19,16 @@ Or add to your `pesde.toml`:
 placefs = { repo = "https://github.com/daireb/placefs", rev = "v1.0.0" }
 ```
 
+## Authentication
+
+placefs downloads places as the logged-in user, so it needs a `.ROBLOSECURITY` cookie. It reads the cookie from your local Roblox Studio installation first, and falls back to the `ROBLOSECURITY` environment variable when Studio is unavailable:
+
+```bash
+ROBLOSECURITY="$ROBLOX_COOKIE" pesde run placefs -- --all
+```
+
+The environment variable accepts either a bare token or the full `.ROBLOSECURITY=...` form, which makes placefs usable on CI runners and other machines without Studio installed.
+
 ## Setup
 
 Run setup and enter a short name and Roblox place ID:
@@ -114,6 +124,8 @@ Sync every configured place sequentially:
 ```bash
 pesde run placefs -- --all
 ```
+
+Places are synced independently: if one place cannot be downloaded, the remaining places still sync and the failure is reported at the end. placefs exits non-zero if any place failed.
 
 Target one or more Roblox paths:
 

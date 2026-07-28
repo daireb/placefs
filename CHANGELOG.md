@@ -15,10 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `places` subcommand for listing configured places.
 - Global and per-place `maxExpansionDepth` defaults.
 - Safe instance-name validation for folder expansion.
+- `ROBLOSECURITY` environment variable fallback when a Roblox Studio installation is unavailable, allowing placefs to run on CI runners.
 
 ### Changed
 
 - `--all` syncs the selected place, or every configured place sequentially when `--place` is omitted.
+- Multi-place syncs isolate failures: a place that cannot be downloaded no longer aborts the places after it, and failed places are listed at the end.
 - `project` names output files after places and generates every place when none is selected.
 - `setup` appends a named place to an existing config while preserving its text.
 - Installation examples now pin the `v1.0.0` tag rather than tracking `main`.

@@ -1,15 +1,25 @@
+local process = require("@lune/process")
 local roblox = require("@lune/roblox")
+
+local formatAuthCookie = require("./format_auth_cookie")
 
 return function(): string
 	-- Pull from studio install
-	local auth_cookie = roblox.getAuthCookie()
+	local ok, auth_cookie = pcall(roblox.getAuthCookie)
 
-	-- TODO: Fallback to environment variable if studio install fails
-
-	-- Final check and return
-	if auth_cookie ~= nil then
+	if ok and auth_cookie ~= nil then
 		return auth_cookie
-	else
-		error("Failed to retrieve ROBLOSECURITY cookie.")
 	end
+
+	-- Fall back to the environment when Studio is unavailable
+	local fromEnvironment = process.env.ROBLOSECURITY
+
+	if fromEnvironment ~= nil and fromEnvironment ~= "" then
+		return formatAuthCookie(fromEnvironment)
+	end
+
+	error(
+		"Failed to retrieve ROBLOSECURITY cookie. Log in through Roblox Studio, "
+			.. "or set the ROBLOSECURITY environment variable."
+	)
 end

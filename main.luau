@@ -84,15 +84,34 @@ if #targets > 1 and not args.flags.quiet then
 end
 
 local failures = 0
+local failedPlaces: { string } = {}
+
 for _, target in targets do
 	if not args.flags.quiet then
 		print(`\n[placefs] Place: {target.placeName}`)
 	end
 
-	failures += update_assets(target.syncConfig, target.robloxPaths, {
+	-- A place that cannot be downloaded must not abort the places after it
+	local ok, result = pcall(update_assets, target.syncConfig, target.robloxPaths, {
 		dryRun = args.flags["dry-run"],
 		quiet = args.flags.quiet,
 	})
+
+	if not ok then
+		failures += 1
+		table.insert(failedPlaces, target.placeName)
+		print(`[placefs] Place '{target.placeName}' failed: {tostring(result)}`)
+	else
+		local placeFailures = result :: number
+		failures += placeFailures
+		if placeFailures > 0 then
+			table.insert(failedPlaces, target.placeName)
+		end
+	end
+end
+
+if #targets > 1 and #failedPlaces > 0 then
+	print(`\n[placefs] {#failedPlaces} of {#targets} places had failures: {table.concat(failedPlaces, ", ")}`)
 end
 
 if failures > 0 then
