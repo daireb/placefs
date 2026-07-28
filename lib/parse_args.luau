@@ -20,6 +20,8 @@ export type OptionDef = {
 	description: string,
 	--- Default value if not provided
 	default: string?,
+	--- Environment variable fallback
+	env: string?,
 }
 
 --[[
@@ -106,6 +108,9 @@ local function collectOptionLines(
 	if options then
 		for name, def in options do
 			local desc = def.description
+			if def.env then
+				desc = `{desc} (env: {def.env})`
+			end
 			if def.default then
 				desc = `{desc} (default: {def.default})`
 			end
@@ -266,7 +271,9 @@ local function parseArgs(config: ParserConfig): ParsedArgs
 	-- Initialize options with defaults
 	if effectiveOptions then
 		for name, def in effectiveOptions do
-			if def.default then
+			if def.env and process.env[def.env] and process.env[def.env] ~= "" then
+				options[name] = process.env[def.env]
+			elseif def.default then
 				options[name] = def.default
 			end
 		end

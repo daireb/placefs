@@ -23,6 +23,24 @@ export type SyncConfig = {
 	map: AssetMap,
 }
 
+--- Shared defaults from the top-level [settings] table.
+export type Settings = {
+	maxExpansionDepth: number?,
+}
+
+--- The complete placefs configuration.
+export type Config = {
+	settings: Settings,
+	places: { [string]: SyncConfig },
+}
+
+--- A single place and its resolved Roblox paths for one sync operation.
+export type ResolvedTarget = {
+	placeName: string,
+	syncConfig: SyncConfig,
+	robloxPaths: { string },
+}
+
 --[[
 	Runtime options passed through the CLI.
 ]]

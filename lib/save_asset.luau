@@ -41,13 +41,27 @@ local function hasModelExtension(path: string): boolean
 	return path:sub(-5) == ".rbxm" or path:sub(-6) == ".rbxmx"
 end
 
---- Checks for duplicate child names and errors if found.
-local function validateNoDuplicateNames(instance: roblox.Instance)
+--- Validates child names before using them as filesystem path segments.
+local function validateChildNames(instance: roblox.Instance, options: Types.Options?)
 	local children = instance:GetChildren()
 	local seenNames: { [string]: boolean } = {}
 	local duplicates: { string } = {}
 
 	for _, child in children do
+		local name = child.Name
+		local lowerName = name:lower()
+		if name:find("/", 1, true) or name:find("\\", 1, true) then
+			error(`Instance name '{name}' contains a path separator and cannot be saved as a filesystem segment.`)
+		end
+		if lowerName:sub(-5) == ".rbxm" or lowerName:sub(-6) == ".rbxmx" then
+			error(`Instance name '{name}' ends in a Roblox model extension and cannot round-trip through the filesystem.`)
+		end
+		if name:find(".", 1, true) and not (options and options.quiet) then
+			print(
+				`[placefs] Warning: Instance name '{name}' contains '.' and cannot be targeted unambiguously by Roblox path.`
+			)
+		end
+
 		if seenNames[child.Name] then
 			if not table.find(duplicates, child.Name) then
 				table.insert(duplicates, child.Name)
@@ -62,6 +76,23 @@ local function validateNoDuplicateNames(instance: roblox.Instance)
 		error(
 			`Folder '{instance.Name}' contains children with duplicate names: {duplicateList}. Rename them to avoid conflicts.`
 		)
+	end
+end
+
+--- Validates every directory that will be expanded before any files are changed.
+local function validateExpandedTree(
+	instance: roblox.Instance,
+	currentDepth: number,
+	maxDepth: number,
+	options: Types.Options?
+)
+	if instance.ClassName ~= "Folder" or currentDepth >= maxDepth then
+		return
+	end
+
+	validateChildNames(instance, options)
+	for _, child in instance:GetChildren() do
+		validateExpandedTree(child, currentDepth + 1, maxDepth, options)
 	end
 end
 
@@ -93,9 +124,6 @@ local function saveRecursive(
 	local isDryRun = options and options.dryRun
 
 	if shouldExpand then
-		-- Validate no duplicate names before creating directory
-		validateNoDuplicateNames(instance)
-
 		if not isDryRun then
 			-- Clear and recreate directory to remove stale files
 			if fs.isDir(basePath) then
@@ -162,6 +190,7 @@ return function(
 			)
 		end
 
+		validateExpandedTree(instance, 0, effectiveMaxDepth, options)
 		saveRecursive(instance, filesystemPath, 0, effectiveMaxDepth, options)
 	end
 end

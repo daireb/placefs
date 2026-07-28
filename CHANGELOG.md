@@ -5,6 +5,50 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0]
+
+### Added
+
+- First-class multi-place configs using named `[places.<name>]` sections.
+- `--place`/`-p` selection and `PLACEFS_PLACE`/`PLACEFS_CONFIG` environment defaults.
+- Filesystem-path targets, resolved back to Roblox paths within the selected place.
+- `places` subcommand for listing configured places.
+- Global and per-place `maxExpansionDepth` defaults.
+- Safe instance-name validation for folder expansion.
+
+### Changed
+
+- `--all` syncs the selected place, or every configured place sequentially when `--place` is omitted.
+- `project` names output files after places and generates every place when none is selected.
+- `setup` appends a named place to an existing config while preserving its text.
+- Installation examples now pin the `v1.0.0` tag rather than tracking `main`.
+
+### Breaking
+
+The 0.x one-place shape is no longer accepted:
+
+```toml
+# 0.x
+[settings]
+placeId = 123456789
+
+[[assets]]
+robloxPath = "game.Workspace.Map"
+filesystemPath = "./assets/map.rbxm"
+```
+
+Move each old config into a named place:
+
+```toml
+# 1.0
+[places.maps]
+placeId = 123456789
+
+[[places.maps.assets]]
+robloxPath = "game.Workspace.Map"
+filesystemPath = "./assets/map.rbxm"
+```
+
 ## [0.6.0]
 
 ### Added

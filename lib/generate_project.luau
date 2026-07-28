@@ -1,9 +1,9 @@
 local fs = require("@lune/fs")
-local process = require("@lune/process")
 local serde = require("@lune/serde")
 
 local Types = require("./Types")
-local load_sync_config = require("./load_sync_config")
+local load_config = require("./load_config")
+local resolveFilesystemPath = require("./resolve_filesystem_path")
 
 local SERVICES: { [string]: boolean } = {
 	Workspace = true,
@@ -20,13 +20,6 @@ local SERVICES: { [string]: boolean } = {
 	Teams = true,
 	TextChatService = true,
 }
-
---- Extracts the base name from a config path by stripping directory and .toml extension.
---- e.g. "placefs.toml" -> "placefs", "configs/builder.toml" -> "builder"
-local function deriveBaseName(configPath: string): string
-	local filename = configPath:match("([^/\\]+)$") or configPath
-	return filename:match("(.+)%.toml$") or filename
-end
 
 --- Builds a Rojo project tree from an asset map.
 --- Each asset entry's robloxPath is split into segments and nested into
@@ -72,24 +65,44 @@ local function buildTree(assetMap: Types.AssetMap): { [string]: any }
 	return tree
 end
 
---- Generates a Rojo project file from the placefs configuration.
---- @param configPath Path to the config file (from --config)
---- @param outputPath Optional explicit output path (from --output); derived from config name if nil
-return function(configPath: string, outputPath: string?)
-	local resolvedConfigPath = process.cwd .. configPath
-	local config = load_sync_config(resolvedConfigPath)
-
-	local baseName = deriveBaseName(configPath)
-	local outputFilename = outputPath or (baseName .. ".project.json")
-
+local function writeProject(placeName: string, syncConfig: Types.SyncConfig, outputFilename: string)
 	local project = {
-		name = baseName,
-		tree = buildTree(config.map),
+		name = placeName,
+		tree = buildTree(syncConfig.map),
 	}
 
 	local json = serde.encode("json", project, true)
-	local fullOutputPath = process.cwd .. outputFilename
+	local fullOutputPath = resolveFilesystemPath(outputFilename)
 
 	fs.writeFile(fullOutputPath, json)
 	print(`[placefs] Generated {outputFilename}`)
+end
+
+--- Generates one or all Rojo project files from the placefs configuration.
+--- @param configPath Path to the config file (from --config)
+--- @param placeName Optional configured place name (from --place)
+--- @param outputPath Optional explicit output path (from --output)
+return function(configPath: string, placeName: string?, outputPath: string?)
+	local config = load_config(resolveFilesystemPath(configPath))
+	local placeNames = {}
+
+	if placeName ~= nil then
+		if config.places[placeName] == nil then
+			error(`Unknown place '{placeName}'. Run 'placefs places' to list configured places.`)
+		end
+		table.insert(placeNames, placeName)
+	else
+		for name in config.places do
+			table.insert(placeNames, name)
+		end
+		table.sort(placeNames)
+	end
+
+	if outputPath ~= nil and #placeNames > 1 then
+		error("--output requires --place when the config contains multiple places")
+	end
+
+	for _, name in placeNames do
+		writeProject(name, config.places[name], outputPath or (name .. ".project.json"))
+	end
 end

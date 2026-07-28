@@ -1,5 +1,5 @@
 name = "daireb/placefs"
-version = "0.6.0"
+version = "1.0.0"
 description = "Sync Roblox instances from a published place to your local filesystem"
 authors = ["daireb"]
 license = "MIT"

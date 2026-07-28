@@ -5,8 +5,27 @@ local stdio = require("@lune/stdio")
 
 local get_auth_cookie = require("./get_auth_cookie")
 local download_place = require("./download_place")
+local load_config = require("./load_config")
+local resolveFilesystemPath = require("./resolve_filesystem_path")
 
-local CONFIG_HEADER = "# placefs configuration file\n\n"
+local CONFIG_HEADER = "# placefs configuration file\n\n[settings]\n"
+
+--- Prompts for a stable place name used by the CLI and generated filenames.
+local function promptPlaceName(): string
+	local input = stdio.prompt("text", "Enter a name for this place (for example: maps)")
+
+	if input == nil or input == "" then
+		print("[placefs] Error: No place name provided.")
+		process.exit(1)
+	end
+
+	if input:match("^[%w][%w_-]*$") == nil then
+		print("[placefs] Error: Place names may only contain letters, numbers, hyphens, and underscores.")
+		process.exit(1)
+	end
+
+	return input
+end
 
 --- Prompts the user for a place ID and validates the input
 local function promptPlaceId(): number
@@ -46,42 +65,68 @@ local function verifyPlaceAccess(placeId: number): boolean
 	end
 end
 
---- Creates the config file with the given place ID
-local function writeConfig(placeId: number, configPath: string)
-	local fullPath = process.cwd .. configPath
-
-	-- Check if config already exists
-	if fs.isFile(fullPath) then
-		print(`[placefs] Error: {configPath} already exists. Delete it first or edit it manually.`)
-		process.exit(1)
-	end
-
-	-- Encode sections separately to control ordering
-	local settingsToml = serde.encode("toml", {
-		settings = { placeId = placeId },
-	})
-
-	local assetsToml = serde.encode("toml", {
-		assets = {
-			{
-				robloxPath = "game.Workspace.MyModel",
-				filesystemPath = "./assets/my-model.rbxm",
+local function encodePlace(placeName: string, placeId: number): string
+	return serde.encode("toml", {
+		places = {
+			[placeName] = {
+				placeId = placeId,
+				assets = {
+					{
+						robloxPath = "game.Workspace.MyModel",
+						filesystemPath = "./assets/my-model.rbxm",
+					},
+				},
 			},
 		},
 	})
+end
 
-	-- Serialize and write with correct section order
-	local content = CONFIG_HEADER .. settingsToml .. "\n" .. assetsToml
-	fs.writeFile(fullPath, content)
+--- Creates a config or appends a place while preserving existing text.
+local function writePlace(placeName: string, placeId: number, configPath: string)
+	local fullPath = resolveFilesystemPath(configPath)
 
-	print("")
-	print(`[placefs] Created {configPath}`)
+	if fs.isFile(fullPath) then
+		local config = load_config(fullPath)
+		if config.places[placeName] ~= nil then
+			print(`[placefs] Error: Place '{placeName}' already exists in {configPath}.`)
+			process.exit(1)
+		end
+
+		local existing = fs.readFile(fullPath):gsub("%s*$", "")
+		local updated = existing .. "\n\n" .. encodePlace(placeName, placeId) .. "\n"
+		local valid, parseError = pcall(function()
+			serde.decode("toml", updated)
+		end)
+		if not valid then
+			print(`[placefs] Error: Cannot safely append a place to {configPath}: {tostring(parseError)}`)
+			print("[placefs] Add the [places.<name>] section manually instead.")
+			process.exit(1)
+		end
+
+		fs.writeFile(fullPath, updated)
+		print("")
+		print(`[placefs] Added place '{placeName}' to {configPath}`)
+	else
+		fs.writeFile(fullPath, CONFIG_HEADER .. "\n" .. encodePlace(placeName, placeId) .. "\n")
+		print("")
+		print(`[placefs] Created {configPath} with place '{placeName}'`)
+	end
+end
+
+local function rejectDuplicatePlace(placeName: string, configPath: string)
+	local fullPath = resolveFilesystemPath(configPath)
+	if fs.isFile(fullPath) and load_config(fullPath).places[placeName] ~= nil then
+		print(`[placefs] Error: Place '{placeName}' already exists in {configPath}.`)
+		process.exit(1)
+	end
 end
 
 --- Main setup flow
 --- @param configPath path for the config file (provided by --config, defaults to placefs.toml)
 return function(configPath: string)
+	local placeName = promptPlaceName()
+	rejectDuplicatePlace(placeName, configPath)
 	local placeId = promptPlaceId()
 	verifyPlaceAccess(placeId)
-	writeConfig(placeId, configPath)
+	writePlace(placeName, placeId, configPath)
 end
