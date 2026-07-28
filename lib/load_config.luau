@@ -67,9 +67,7 @@ return function(path: string): Types.Config
 		)
 		assert(typeof(place) == "table", `Invalid config: {placePath} must be a table`)
 		assert(
-			typeof(place.placeId) == "number"
-				and place.placeId > 0
-				and math.floor(place.placeId) == place.placeId,
+			typeof(place.placeId) == "number" and place.placeId > 0 and math.floor(place.placeId) == place.placeId,
 			`Invalid config: {placePath}.placeId must be a positive integer`
 		)
 		validateMaxExpansionDepth(place.maxExpansionDepth, `{placePath}.maxExpansionDepth`)

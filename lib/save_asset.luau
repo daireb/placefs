@@ -54,7 +54,9 @@ local function validateChildNames(instance: roblox.Instance, options: Types.Opti
 			error(`Instance name '{name}' contains a path separator and cannot be saved as a filesystem segment.`)
 		end
 		if lowerName:sub(-5) == ".rbxm" or lowerName:sub(-6) == ".rbxmx" then
-			error(`Instance name '{name}' ends in a Roblox model extension and cannot round-trip through the filesystem.`)
+			error(
+				`Instance name '{name}' ends in a Roblox model extension and cannot round-trip through the filesystem.`
+			)
 		end
 		if name:find(".", 1, true) and not (options and options.quiet) then
 			print(

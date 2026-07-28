@@ -3,7 +3,10 @@ local resolveTarget = require("../lib/resolve_target")
 local function expectError(callback, expected: string)
 	local ok, message = pcall(callback)
 	assert(not ok, "Expected callback to fail")
-	assert(tostring(message):find(expected, 1, true), `Expected error containing '{expected}', got '{tostring(message)}'`)
+	assert(
+		tostring(message):find(expected, 1, true),
+		`Expected error containing '{expected}', got '{tostring(message)}'`
+	)
 end
 
 local config = {

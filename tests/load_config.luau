@@ -39,7 +39,7 @@ return function()
 
 		fs.writeFile(
 			path,
-			"[places.maps]\nplaceId = 123\n\n[[places.maps.assets]]\nrobloxPath = \"game.Workspace.Map\"\nfilesystemPath = \"./\"\n"
+			'[places.maps]\nplaceId = 123\n\n[[places.maps.assets]]\nrobloxPath = "game.Workspace.Map"\nfilesystemPath = "./"\n'
 		)
 		local rootLoaded, rootError = pcall(function()
 			loadConfig(path)
@@ -47,7 +47,10 @@ return function()
 		assert(not rootLoaded)
 		assert(tostring(rootError):find("cannot target the filesystem root", 1, true))
 
-		fs.writeFile(path, "[settings]\nplaceId = 123\n\n[[assets]]\nrobloxPath = \"game.Workspace.Map\"\nfilesystemPath = \"./assets/map.rbxm\"\n")
+		fs.writeFile(
+			path,
+			'[settings]\nplaceId = 123\n\n[[assets]]\nrobloxPath = "game.Workspace.Map"\nfilesystemPath = "./assets/map.rbxm"\n'
+		)
 		local loaded, loadError = pcall(function()
 			loadConfig(path)
 		end)
