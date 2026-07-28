@@ -56,28 +56,16 @@ end
 local function expectSuccess(args: { string }, contains: string): Result
 	local result = placefs(args)
 	assert(result.code == 0, `Expected success from '{table.concat(args, " ")}', got code {result.code}`)
-	assert(
-		result.output:find(contains, 1, true),
-		`Expected output containing '{contains}', got:\n{result.output}`
-	)
+	assert(result.output:find(contains, 1, true), `Expected output containing '{contains}', got:\n{result.output}`)
 	return result
 end
 
 local function expectCleanFailure(args: { string }, contains: string)
 	local result = placefs(args)
 	assert(result.code ~= 0, `Expected failure from '{table.concat(args, " ")}', got code 0`)
-	assert(
-		result.output:find("[placefs] Error:", 1, true),
-		`Expected a '[placefs] Error:' line, got:\n{result.output}`
-	)
-	assert(
-		not result.output:find("[Stack Begin]", 1, true),
-		`Expected no stack trace, got:\n{result.output}`
-	)
-	assert(
-		result.output:find(contains, 1, true),
-		`Expected output containing '{contains}', got:\n{result.output}`
-	)
+	assert(result.output:find("[placefs] Error:", 1, true), `Expected a '[placefs] Error:' line, got:\n{result.output}`)
+	assert(not result.output:find("[Stack Begin]", 1, true), `Expected no stack trace, got:\n{result.output}`)
+	assert(result.output:find(contains, 1, true), `Expected output containing '{contains}', got:\n{result.output}`)
 end
 
 return function()
