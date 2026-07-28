@@ -122,7 +122,9 @@ return function(config: Types.Config, options: ResolveOptions): { Types.Resolved
 
 	if not options.all then
 		if #options.positionals > 0 then
-			error(`--place is required when syncing positional paths. Configured places: {table.concat(placeNames, ", ")}`)
+			error(
+				`--place is required when syncing positional paths. Configured places: {table.concat(placeNames, ", ")}`
+			)
 		end
 		error("No instances specified. Use --all or provide --place with Roblox/filesystem paths.")
 	end

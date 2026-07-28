@@ -220,6 +220,16 @@ lune run path/to/main.luau --place maps --all
 lune run path/to/main.luau --all
 ```
 
+## Development
+
+Run the test suite with Lune from the repository root:
+
+```bash
+lune run tests/run
+```
+
+The suite is dependency-free and needs no network access. It covers argument parsing, config loading, target resolution, instance-name validation, and a set of end-to-end checks that invoke the CLI as a subprocess to assert exit codes and error output.
+
 ## Migrating from 0.x
 
 placefs 1.0 intentionally replaces one-file-per-place configuration. Move `settings.placeId` and each top-level `[[assets]]` entry under a named place:

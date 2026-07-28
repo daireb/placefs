@@ -1,8 +1,11 @@
 local tests = {
 	{ name = "clean_error", run = require("./clean_error") },
+	{ name = "cli", run = require("./cli") },
 	{ name = "format_auth_cookie", run = require("./format_auth_cookie") },
 	{ name = "load_config", run = require("./load_config") },
+	{ name = "parse_args", run = require("./parse_args") },
 	{ name = "resolve_target", run = require("./resolve_target") },
+	{ name = "save_asset", run = require("./save_asset") },
 }
 
 local failures = 0

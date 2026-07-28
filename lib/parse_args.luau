@@ -291,13 +291,15 @@ end
 	Otherwise, top-level flags and options are used (default command).
 
 	Built-in support for --help/-h and --version/-v.
+
+	`argv` defaults to the process arguments, and is provided by tests.
 ]]
-local function parseArgs(config: ParserConfig): ParsedArgs
+local function parseArgs(config: ParserConfig, argv: { string }?): ParsedArgs
 	local flags: { [string]: boolean } = {}
 	local options: { [string]: string } = {}
 	local positionals: { string } = {}
 
-	local rawArgs = process.args
+	local rawArgs = argv or process.args
 	local subcommand, subcommandIndex = findSubcommand(config, rawArgs)
 
 	-- Resolve which flags/options apply
