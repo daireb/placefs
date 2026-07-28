@@ -53,10 +53,7 @@ end
 local function validateFilesystemPath(value: string, context: string)
 	local normalized = value:gsub("\\", "/"):gsub("/+$", "")
 	assert(
-		normalized ~= ""
-			and normalized ~= "."
-			and normalized ~= "/"
-			and normalized:match("^%a:$") == nil,
+		normalized ~= "" and normalized ~= "." and normalized ~= "/" and normalized:match("^%a:$") == nil,
 		`Invalid config: {context} cannot target the filesystem root`
 	)
 end
@@ -81,11 +78,7 @@ local function parseAssetEntry(value: any, context: string): (string, number?)
 	return value.path, value.maxExpansionDepth
 end
 
-local function parsePlace(
-	placeName: string,
-	place: any,
-	settingsDepth: number?
-): Types.SyncConfig
+local function parsePlace(placeName: string, place: any, settingsDepth: number?): Types.SyncConfig
 	local context = `places.{placeName}`
 
 	assert(
@@ -115,19 +108,14 @@ local function parsePlace(
 
 		local robloxPath = normalizeRobloxPath(rawPath)
 		if seen[robloxPath] then
-			error(
-				`Invalid config: {context} maps '{robloxPath}' twice, as '{seen[robloxPath]}' and '{rawPath}'`
-			)
+			error(`Invalid config: {context} maps '{robloxPath}' twice, as '{seen[robloxPath]}' and '{rawPath}'`)
 		end
 		seen[robloxPath] = rawPath
 
 		table.insert(map, {
 			robloxPath = robloxPath,
 			filesystemPath = filesystemPath,
-			maxExpansionDepth = entryDepth
-				or place.maxExpansionDepth
-				or settingsDepth
-				or DEFAULT_MAX_EXPANSION_DEPTH,
+			maxExpansionDepth = entryDepth or place.maxExpansionDepth or settingsDepth or DEFAULT_MAX_EXPANSION_DEPTH,
 		})
 	end
 
