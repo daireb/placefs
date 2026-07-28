@@ -233,30 +233,72 @@ local function resolveEffectiveConfig(
 end
 
 --[[
+	Finds the subcommand token and its position, if one was given.
+
+	Shared options may appear before the subcommand, so the scan skips over
+	option values to avoid mistaking them for a subcommand. Only shared
+	options are considered here, since subcommand-specific options cannot
+	appear before the subcommand that defines them.
+]]
+local function findSubcommand(config: ParserConfig, rawArgs: { string }): (string?, number?)
+	if not config.subcommands then
+		return nil, nil
+	end
+
+	local sharedShorts: { [string]: boolean } = {}
+	if config.options then
+		for _, def in config.options do
+			if def.short then
+				sharedShorts[def.short] = true
+			end
+		end
+	end
+
+	local i = 1
+	while i <= #rawArgs do
+		local arg = rawArgs[i]
+
+		if string.sub(arg, 1, 2) == "--" then
+			local name = string.sub(arg, 3)
+			-- An inline `--name=value` carries its own value
+			if not string.find(name, "=") and config.options and config.options[name] then
+				i += 1
+			end
+		elseif string.sub(arg, 1, 1) == "-" and #arg > 1 then
+			local short = string.sub(arg, 2)
+			if not string.find(short, "=") and sharedShorts[short] then
+				i += 1
+			end
+		else
+			-- The first bare argument is either the subcommand or a positional
+			if config.subcommands[arg] then
+				return arg, i
+			end
+			return nil, nil
+		end
+
+		i += 1
+	end
+
+	return nil, nil
+end
+
+--[[
 	Parse command line arguments according to the provided configuration.
 
-	If the first argument matches a registered subcommand, the parser uses
-	that subcommand's flags/options (merged with shared top-level options).
+	If an argument matches a registered subcommand, the parser uses that
+	subcommand's flags/options (merged with shared top-level options).
 	Otherwise, top-level flags and options are used (default command).
 
 	Built-in support for --help/-h and --version/-v.
 ]]
 local function parseArgs(config: ParserConfig): ParsedArgs
-	local subcommand: string? = nil
 	local flags: { [string]: boolean } = {}
 	local options: { [string]: string } = {}
 	local positionals: { string } = {}
 
-	-- Detect subcommand: first arg that isn't a flag
 	local rawArgs = process.args
-	local startIndex = 1
-
-	if #rawArgs > 0 and string.sub(rawArgs[1], 1, 1) ~= "-" then
-		if config.subcommands and config.subcommands[rawArgs[1]] then
-			subcommand = rawArgs[1]
-			startIndex = 2
-		end
-	end
+	local subcommand, subcommandIndex = findSubcommand(config, rawArgs)
 
 	-- Resolve which flags/options apply
 	local effectiveFlags, effectiveOptions = resolveEffectiveConfig(config, subcommand)
@@ -299,9 +341,14 @@ local function parseArgs(config: ParserConfig): ParsedArgs
 		end
 	end
 
-	local i = startIndex
+	local i = 1
 
 	while i <= #rawArgs do
+		if i == subcommandIndex then
+			i += 1
+			continue
+		end
+
 		local arg = rawArgs[i]
 
 		if arg == "--help" or arg == "-h" then

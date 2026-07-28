@@ -2,6 +2,7 @@ local roblox = require("@lune/roblox")
 
 local Types = require("./Types")
 
+local cleanError = require("./clean_error")
 local download_place = require("./download_place")
 local get_auth_cookie = require("./get_auth_cookie")
 local save_asset = require("./save_asset")
@@ -329,7 +330,7 @@ return function(syncConfig: Types.SyncConfig, instancesToUpdate: { string }, opt
 		if ok then
 			table.insert(results, { path = targetRobloxPath, success = true })
 		else
-			table.insert(results, { path = targetRobloxPath, success = false, error = tostring(err) })
+			table.insert(results, { path = targetRobloxPath, success = false, error = cleanError(err) })
 		end
 	end
 

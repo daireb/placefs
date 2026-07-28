@@ -93,4 +93,28 @@ return function()
 	assert(allTargets[1].placeName == "alpha")
 	assert(allTargets[2].placeName == "maps")
 	assert(#allTargets[2].robloxPaths == 3)
+
+	-- A single configured place needs no --place to disambiguate
+	local soleConfig = {
+		settings = {},
+		places = { only = config.places.alpha },
+	}
+
+	local soleTargets = resolveTarget(soleConfig, {
+		place = nil,
+		positionals = { "assets/shared.rbxm" },
+		all = false,
+	})
+	assert(#soleTargets == 1)
+	assert(soleTargets[1].placeName == "only")
+	assert(soleTargets[1].robloxPaths[1] == "game.ReplicatedStorage.Asset")
+
+	-- An explicitly wrong name still errors, even with only one place
+	expectError(function()
+		resolveTarget(soleConfig, {
+			place = "typo",
+			positionals = {},
+			all = true,
+		})
+	end, "Unknown place")
 end

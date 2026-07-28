@@ -94,10 +94,15 @@ return function(config: Types.Config, options: ResolveOptions): { Types.Resolved
 		error("Cannot combine --all with positional paths")
 	end
 
-	if options.place ~= nil then
-		local syncConfig = config.places[options.place]
+	local placeNames = sortedPlaceNames(config.places)
+
+	-- With a single configured place there is nothing to disambiguate
+	local selected = options.place or (if #placeNames == 1 then placeNames[1] else nil)
+
+	if selected ~= nil then
+		local syncConfig = config.places[selected]
 		if syncConfig == nil then
-			error(`Unknown place '{options.place}'. Run 'placefs places' to list configured places.`)
+			error(`Unknown place '{selected}'. Configured places: {table.concat(placeNames, ", ")}`)
 		end
 
 		if not options.all and #options.positionals == 0 then
@@ -106,7 +111,7 @@ return function(config: Types.Config, options: ResolveOptions): { Types.Resolved
 
 		return {
 			{
-				placeName = options.place,
+				placeName = selected,
 				syncConfig = syncConfig,
 				robloxPaths = if options.all
 					then allMappedPaths(syncConfig)
@@ -117,13 +122,13 @@ return function(config: Types.Config, options: ResolveOptions): { Types.Resolved
 
 	if not options.all then
 		if #options.positionals > 0 then
-			error("--place is required when syncing positional paths")
+			error(`--place is required when syncing positional paths. Configured places: {table.concat(placeNames, ", ")}`)
 		end
 		error("No instances specified. Use --all or provide --place with Roblox/filesystem paths.")
 	end
 
 	local targets = {}
-	for _, placeName in sortedPlaceNames(config.places) do
+	for _, placeName in placeNames do
 		local syncConfig = config.places[placeName]
 		table.insert(targets, {
 			placeName = placeName,

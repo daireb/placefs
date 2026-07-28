@@ -1,4 +1,5 @@
 local tests = {
+	{ name = "clean_error", run = require("./clean_error") },
 	{ name = "format_auth_cookie", run = require("./format_auth_cookie") },
 	{ name = "load_config", run = require("./load_config") },
 	{ name = "resolve_target", run = require("./resolve_target") },

@@ -139,7 +139,15 @@ Target the equivalent filesystem path, including a child that does not exist loc
 pesde run placefs -- --place maps assets/maps/story/Level3
 ```
 
-Filesystem targets are resolved by the selected place's mappings, so `--place` is always required for positional paths. A positional beginning with `game.` or `workspace.` is interpreted as a Roblox path; all other positionals are filesystem paths.
+A positional beginning with `game.` or `workspace.` is interpreted as a Roblox path; all other positionals are filesystem paths.
+
+Filesystem targets are resolved against the selected place's mappings. When the config defines more than one place, `--place` is required for positional paths so the target is never ambiguous. When it defines exactly one place, that place is used automatically and `--place` can be omitted everywhere:
+
+```bash
+# Single-place config: these are equivalent
+pesde run placefs -- --place main game.Workspace.Map
+pesde run placefs -- game.Workspace.Map
+```
 
 Preview a sync without writing:
 
@@ -201,7 +209,9 @@ PROJECT OPTIONS:
     -o, --output <VALUE>   Output file path
 ```
 
-`-c` and `--place` are shared across sync, `setup`, `places`, and `project`. `PLACEFS_CONFIG` and `PLACEFS_PLACE` provide defaults that explicit CLI options override.
+`-c` and `--place` are shared across sync, `setup`, `places`, and `project`, and may be given before or after the subcommand. `PLACEFS_CONFIG` and `PLACEFS_PLACE` provide defaults that explicit CLI options override.
+
+Errors are reported as a single `[placefs] Error: ...` line with a non-zero exit code. Set `PLACEFS_DEBUG=1` to print the full traceback instead when diagnosing a bug in the tool itself.
 
 ### Running directly
 

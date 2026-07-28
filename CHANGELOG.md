@@ -16,9 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Global and per-place `maxExpansionDepth` defaults.
 - Safe instance-name validation for folder expansion.
 - `ROBLOSECURITY` environment variable fallback when a Roblox Studio installation is unavailable, allowing placefs to run on CI runners.
+- `PLACEFS_DEBUG` for printing a full traceback instead of a single-line error.
 
 ### Changed
 
+- `--place` is optional when the config defines exactly one place, so single-place setups need no place selection at all.
+- Subcommands are recognised after shared options, so `placefs -c other.toml places` runs the subcommand instead of treating `places` as a path to sync.
+- Errors are reported as one `[placefs] Error: ...` line with a non-zero exit code rather than a Lune stack trace.
+- `places` aligns its output columns.
 - `--all` syncs the selected place, or every configured place sequentially when `--place` is omitted.
 - Multi-place syncs isolate failures: a place that cannot be downloaded no longer aborts the places after it, and failed places are listed at the end.
 - `project` names output files after places and generates every place when none is selected.
