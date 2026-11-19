@@ -171,6 +171,18 @@ Preview a sync without writing:
 pesde run placefs -- --place maps --dry-run --all
 ```
 
+### Material texture packs
+
+Studio compiles a `MaterialVariant`'s texture pack some time after the variant changes, and live servers draw from the pack alone. A place published in between looks right in Studio, which falls back to the separate colour, normal and roughness maps, but its variants show as their plain base material in game.
+
+Before saving an asset, placefs looks at every `MaterialVariant` at or under it. If any has a colour map but no texture pack, that asset fails: nothing is written for it, so what is on disk stays, the variants are listed in the summary and placefs exits non-zero. Other assets in the same run still save. A dry run reports the same failure.
+
+To fix it, reopen the place in Studio, wait for the materials to finish compiling, publish and pull again. To save the asset as it is:
+
+```bash
+pesde run placefs -- --place maps --allow-unpacked-materials game.MaterialService
+```
+
 List configured places without accessing Roblox:
 
 ```bash
@@ -213,16 +225,17 @@ SUBCOMMANDS:
     setup                  Add a place to the config
 
 OPTIONS:
-    -a, --all              Update all mapped assets
-    -c, --config <VALUE>   Config path (default: placefs.toml; env: PLACEFS_CONFIG)
-    -n, --dry-run          Preview changes without writing files
-    -h, --help             Show help
-    -p, --place <VALUE>    Configured place name (env: PLACEFS_PLACE)
-    -q, --quiet            Suppress output except errors
-    -v, --version          Show version
+    -a, --all                       Update all mapped assets
+        --allow-unpacked-materials  Save MaterialVariants that have no texture pack
+    -c, --config <VALUE>            Config path (default: placefs.toml; env: PLACEFS_CONFIG)
+    -n, --dry-run                   Preview changes without writing files
+    -h, --help                      Show help
+    -p, --place <VALUE>             Configured place name (env: PLACEFS_PLACE)
+    -q, --quiet                     Suppress output except errors
+    -v, --version                   Show version
 
 PROJECT OPTIONS:
-    -o, --output <VALUE>   Output file path
+    -o, --output <VALUE>            Output file path
 ```
 
 `-c` and `--place` are shared across sync, `setup`, `places`, and `project`, and may be given before or after the subcommand. `PLACEFS_CONFIG` and `PLACEFS_PLACE` provide defaults that explicit CLI options override.
@@ -254,7 +267,7 @@ Run the test suite with Lune from the repository root:
 lune run tests/run
 ```
 
-The suite is dependency-free and needs no network access. It covers argument parsing, config loading, target resolution, instance-name validation, and a set of end-to-end checks that invoke the CLI as a subprocess to assert exit codes and error output.
+The suite is dependency-free and needs no network access. It covers argument parsing, config loading, target resolution, instance-name validation, the texture pack check, and a set of end-to-end checks that invoke the CLI as a subprocess to assert exit codes and error output.
 
 Formatting and linting are pinned in `rokit.toml`, so run `rokit install` once and then:
 

@@ -49,6 +49,8 @@ export type Options = {
 	dryRun: boolean?,
 	--- Suppress output except errors.
 	quiet: boolean?,
+	--- Save MaterialVariants that have no compiled texture pack instead of failing their asset.
+	allowUnpackedMaterials: boolean?,
 }
 
 return nil

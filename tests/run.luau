@@ -1,6 +1,7 @@
 local tests = {
 	{ name = "clean_error", run = require("./clean_error") },
 	{ name = "cli", run = require("./cli") },
+	{ name = "find_unpacked_variants", run = require("./find_unpacked_variants") },
 	{ name = "format_auth_cookie", run = require("./format_auth_cookie") },
 	{ name = "load_config", run = require("./load_config") },
 	{ name = "parse_args", run = require("./parse_args") },

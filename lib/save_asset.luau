@@ -2,6 +2,7 @@ local roblox = require("@lune/roblox")
 local fs = require("@lune/fs")
 
 local Types = require("./Types")
+local findUnpackedVariants = require("./find_unpacked_variants")
 
 local DEFAULT_MAX_EXPANSION_DEPTH = 2
 
@@ -98,6 +99,26 @@ local function validateExpandedTree(
 	end
 end
 
+--- Errors when the instance holds MaterialVariants without a texture pack, unless the options allow them.
+local function rejectUnpackedVariants(instance: roblox.Instance, options: Types.Options?)
+	if options and options.allowUnpackedMaterials then
+		return
+	end
+
+	local unpacked = findUnpackedVariants(instance)
+	if #unpacked > 0 then
+		error(
+			`{#unpacked} MaterialVariant{if #unpacked == 1 then " has" else "s have"} no texture pack: {table.concat(
+				unpacked,
+				", "
+			)}. `
+				.. "The place is probably mid-compile, and saving it would show plain materials in game: reopen it in "
+				.. "Studio, wait for the materials to finish compiling, publish and pull again. Nothing was written "
+				.. "for this asset; pass --allow-unpacked-materials to save anyway."
+		)
+	end
+end
+
 --- Serializes an instance to a file.
 local function serializeToFile(instance: roblox.Instance, filePath: string, options: Types.Options?)
 	if options and options.dryRun then
@@ -171,6 +192,9 @@ return function(
 	local instance = resolveInstance(game, robloxPath)
 	local effectiveMaxDepth = maxExpansionDepth or DEFAULT_MAX_EXPANSION_DEPTH
 	local isDryRun = options and options.dryRun
+
+	-- Before any write, so a failed check leaves what is on disk
+	rejectUnpackedVariants(instance, options)
 
 	if hasModelExtension(filesystemPath) then
 		-- Explicit file extension: serialize as single file regardless of type
