@@ -34,7 +34,7 @@ local function run()
 			["dry-run"] = { short = "n", description = "Preview changes without writing files" },
 			quiet = { short = "q", description = "Suppress output except errors" },
 			["allow-unpacked-materials"] = {
-				description = "Save MaterialVariants that have no texture pack",
+				description = "Save assets whose MaterialVariants have no texture pack",
 			},
 		},
 		subcommands = {

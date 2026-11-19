@@ -36,10 +36,11 @@ return function()
 		{ "Empty (Plastic)" },
 		"current, pack empty"
 	)
+	expectNames(variant("Bare", COLOR, PACKED_DETAIL), { "Bare (Plastic)" }, "no pack beside a packed TerrainDetail")
 	expectNames(
-		variant("Empty", COLOR .. '<Content name="TexturePackContent"><null></null></Content>', PACKED_DETAIL),
-		{ "Empty (Plastic)" },
-		"current, pack empty beside a packed TerrainDetail"
+		variant("EmptyUri", '<Content name="ColorMapContent"><uri></uri></Content>'),
+		{},
+		"an empty uri is no colour map"
 	)
 
 	-- Legacy form (`TexturePack`)
@@ -54,6 +55,18 @@ return function()
 		"legacy, pack empty"
 	)
 	expectNames(variant("LegacyAbsent", LEGACY_COLOR), { "LegacyAbsent (Plastic)" }, "legacy, pack absent")
+
+	-- Both spellings in one file: a pack under either counts
+	expectNames(
+		variant(
+			"Both",
+			COLOR
+				.. '<Content name="TexturePack"><null></null></Content>'
+				.. '<Content name="TexturePackContent"><uri>rbxassetid://2</uri></Content>'
+		),
+		{},
+		"empty legacy pack beside a set current one"
+	)
 
 	-- A variant with no colour map has nothing to compile
 	expectNames(variant("Blank", ""), {}, "no colour map")

@@ -171,6 +171,12 @@ Preview a sync without writing:
 pesde run placefs -- --place maps --dry-run --all
 ```
 
+List configured places without accessing Roblox:
+
+```bash
+pesde run placefs -- places
+```
+
 ### Material texture packs
 
 Studio compiles a `MaterialVariant`'s texture pack some time after the variant changes, and live servers draw from the pack alone. A place published in between looks right in Studio, which falls back to the separate colour, normal and roughness maps, but its variants show as their plain base material in game.
@@ -181,12 +187,6 @@ To fix it, reopen the place in Studio, wait for the materials to finish compilin
 
 ```bash
 pesde run placefs -- --place maps --allow-unpacked-materials game.MaterialService
-```
-
-List configured places without accessing Roblox:
-
-```bash
-pesde run placefs -- places
 ```
 
 ## Generating Rojo projects
@@ -226,7 +226,7 @@ SUBCOMMANDS:
 
 OPTIONS:
     -a, --all                       Update all mapped assets
-        --allow-unpacked-materials  Save MaterialVariants that have no texture pack
+        --allow-unpacked-materials  Save assets whose MaterialVariants have no texture pack
     -c, --config <VALUE>            Config path (default: placefs.toml; env: PLACEFS_CONFIG)
     -n, --dry-run                   Preview changes without writing files
     -h, --help                      Show help
@@ -235,7 +235,7 @@ OPTIONS:
     -v, --version                   Show version
 
 PROJECT OPTIONS:
-    -o, --output <VALUE>            Output file path
+    -o, --output <VALUE>   Output file path
 ```
 
 `-c` and `--place` are shared across sync, `setup`, `places`, and `project`, and may be given before or after the subcommand. `PLACEFS_CONFIG` and `PLACEFS_PLACE` provide defaults that explicit CLI options override.

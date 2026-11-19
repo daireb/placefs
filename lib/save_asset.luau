@@ -107,14 +107,13 @@ local function rejectUnpackedVariants(instance: roblox.Instance, options: Types.
 
 	local unpacked = findUnpackedVariants(instance)
 	if #unpacked > 0 then
+		local subject = if #unpacked == 1 then "MaterialVariant has" else "MaterialVariants have"
+		local variantList = table.concat(unpacked, ", ")
 		error(
-			`{#unpacked} MaterialVariant{if #unpacked == 1 then " has" else "s have"} no texture pack: {table.concat(
-				unpacked,
-				", "
-			)}. `
-				.. "The place is probably mid-compile, and saving it would show plain materials in game: reopen it in "
-				.. "Studio, wait for the materials to finish compiling, publish and pull again. Nothing was written "
-				.. "for this asset; pass --allow-unpacked-materials to save anyway."
+			`{#unpacked} {subject} no texture pack, so the place is probably mid-compile and would show plain `
+				.. "materials in game. Nothing was written for this asset: reopen the place in Studio, wait for the "
+				.. "materials to finish compiling, publish and pull again, or pass --allow-unpacked-materials to save "
+				.. `anyway. Variants: {variantList}`
 		)
 	end
 end
