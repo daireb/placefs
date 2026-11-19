@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- A sync refuses to save an asset that holds a `MaterialVariant` with a colour map but no compiled texture pack, which is what a place published while Studio is still compiling materials contains and which live servers draw as the plain base material. The asset's file on disk is left as it was, the variants are listed, the asset counts as a failure and placefs exits non-zero; other assets in the run still save.
+- `--allow-unpacked-materials` saves such an asset anyway.
+
 ## [1.0.0]
 
 ### Added

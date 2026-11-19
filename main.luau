@@ -33,6 +33,9 @@ local function run()
 			all = { short = "a", description = "Update all mapped assets" },
 			["dry-run"] = { short = "n", description = "Preview changes without writing files" },
 			quiet = { short = "q", description = "Suppress output except errors" },
+			["allow-unpacked-materials"] = {
+				description = "Save MaterialVariants that have no texture pack",
+			},
 		},
 		subcommands = {
 			setup = { description = "Add a place to the config file" },
@@ -109,6 +112,7 @@ local function run()
 		local ok, result = pcall(update_assets, target.syncConfig, target.robloxPaths, {
 			dryRun = args.flags["dry-run"],
 			quiet = args.flags.quiet,
+			allowUnpackedMaterials = args.flags["allow-unpacked-materials"],
 		})
 
 		if not ok then
