@@ -80,10 +80,16 @@ local function printOptionLines(lines: { { short: string?, long: string, desc: s
 		return a.long < b.long
 	end)
 
+	-- Widen the column for a name longer than the usual width, so descriptions stay aligned
+	local width = 22
+	for _, line in lines do
+		width = math.max(width, #line.long + 4)
+	end
+
 	for _, line in lines do
 		local shortPart = if line.short then `-{line.short}, ` else "    "
 		local longPart = `--{line.long}`
-		local padding = string.rep(" ", math.max(1, 22 - #longPart))
+		local padding = string.rep(" ", width - #longPart)
 		print(`    {shortPart}{longPart}{padding}{line.desc}`)
 	end
 end
