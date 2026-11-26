@@ -9,7 +9,7 @@ Built with [Lune](https://lune-org.github.io/docs).
 ## Quick start
 
 ```bash
-pesde add gh#daireb/placefs#v1.1.0
+pesde add gh#daireb/placefs#v1.2.0
 pesde run placefs -- setup          # prompts for a place name and ID
 ```
 
@@ -35,14 +35,14 @@ placefs authenticates with the cookie from your Roblox Studio installation, so i
 ## Installation
 
 ```bash
-pesde add gh#daireb/placefs#v1.1.0
+pesde add gh#daireb/placefs#v1.2.0
 ```
 
 Or add to your `pesde.toml`:
 
 ```toml
 [dependencies]
-placefs = { repo = "https://github.com/daireb/placefs", rev = "v1.1.0" }
+placefs = { repo = "https://github.com/daireb/placefs", rev = "v1.2.0" }
 ```
 
 ## Configuration

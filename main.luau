@@ -18,7 +18,7 @@ end
 local function run()
 	local args = parseArgs({
 		name = "placefs",
-		version = "1.1.0",
+		version = "1.2.0",
 		description = "Sync Roblox instances from a published place or package to your local filesystem",
 		options = {
 			config = {
