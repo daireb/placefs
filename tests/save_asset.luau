@@ -80,4 +80,15 @@ return function()
 	local okPart, partMessage = pcall(saveAsset, part, "game.Workspace.Maps", target, 2, DRY_RUN)
 	assert(not okPart, "non-Folder should not expand")
 	assert(tostring(partMessage):find("Cannot save non-Folder instance", 1, true))
+
+	-- A package's container resolves paths from the package's own name
+	local container = roblox.Instance.new("Folder")
+	local package = roblox.Instance.new("Folder")
+	package.Name = "Materials"
+	package.Parent = container
+	local packageFile = "/tmp/placefs-package-test.rbxm"
+	saveAsset(container, "Materials", packageFile, 0, { quiet = true })
+	local saved = roblox.deserializeModel(fs.readFile(packageFile))
+	fs.removeFile(packageFile)
+	assert(saved[1].Name == "Materials", "the package root itself should be saved")
 end

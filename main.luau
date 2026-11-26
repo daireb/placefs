@@ -19,7 +19,7 @@ local function run()
 	local args = parseArgs({
 		name = "placefs",
 		version = "1.1.0",
-		description = "Sync Roblox instances from a published place to your local filesystem",
+		description = "Sync Roblox instances from a published place or package to your local filesystem",
 		options = {
 			config = {
 				short = "c",
@@ -27,7 +27,7 @@ local function run()
 				default = "placefs.toml",
 				env = "PLACEFS_CONFIG",
 			},
-			place = { short = "p", description = "Configured place name", env = "PLACEFS_PLACE" },
+			place = { short = "p", description = "Configured place or package name", env = "PLACEFS_PLACE" },
 		},
 		flags = {
 			all = { short = "a", description = "Update all mapped assets" },
@@ -39,7 +39,7 @@ local function run()
 		},
 		subcommands = {
 			setup = { description = "Add a place to the config file" },
-			places = { description = "List configured places" },
+			places = { description = "List configured places and packages" },
 			project = {
 				description = "Generate Rojo project files from your config",
 				options = {
@@ -72,19 +72,31 @@ local function run()
 	local config = load_config(config_path)
 
 	if args.subcommand == "places" then
-		local names = {}
-		local widest = 0
-		for name in config.places do
-			table.insert(names, name)
-			widest = math.max(widest, #name)
+		local rows: { { string } } = {}
+		local function addRow(name: string, source: string, count: number)
+			table.insert(rows, { name, source, `{count} {if count == 1 then "asset" else "assets"}` })
 		end
-		table.sort(names)
 
-		for _, name in names do
-			local place = config.places[name]
-			local padding = string.rep(" ", widest - #name)
-			local count = #place.map
-			print(`{name}{padding}  {place.placeId}  {count} {if count == 1 then "asset" else "assets"}`)
+		for name, place in config.places do
+			addRow(name, tostring(place.placeId), #place.map)
+		end
+		for name, package in config.packages do
+			local version = if package.version ~= nil then `@{package.version}` else ""
+			addRow(name, `package {package.packageId}{version}`, #package.map)
+		end
+		table.sort(rows, function(a, b)
+			return a[1] < b[1]
+		end)
+
+		local widestName, widestSource = 0, 0
+		for _, row in rows do
+			widestName = math.max(widestName, #row[1])
+			widestSource = math.max(widestSource, #row[2])
+		end
+		for _, row in rows do
+			local namePadding = string.rep(" ", widestName - #row[1])
+			local sourcePadding = string.rep(" ", widestSource - #row[2])
+			print(`{row[1]}{namePadding}  {row[2]}{sourcePadding}  {row[3]}`)
 		end
 		return
 	end
@@ -105,10 +117,11 @@ local function run()
 
 	for _, target in targets do
 		if not args.flags.quiet then
-			print(`\n[placefs] Place: {target.placeName}`)
+			local kind = if target.syncConfig.packageId ~= nil then "Package" else "Place"
+			print(`\n[placefs] {kind}: {target.placeName}`)
 		end
 
-		-- A place that cannot be downloaded must not abort the places after it
+		-- A place or package that cannot be downloaded must not abort the ones after it
 		local ok, result = pcall(update_assets, target.syncConfig, target.robloxPaths, {
 			dryRun = args.flags["dry-run"],
 			quiet = args.flags.quiet,

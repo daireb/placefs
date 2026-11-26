@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `[packages.<name>]` sections pull a package straight from its published asset (`packageId`, with an optional `version` pin) instead of from a place that holds a copy. A package's mapping paths start at the package's own instance, such as `"Materials"`, and expand like a place's. Places and packages share one set of names, so `--place` selects either and `--all` syncs both.
+- `places` lists packages beside places, with their asset ID and pinned version.
+
 ## [1.1.0]
 
 ### Added

@@ -15,11 +15,16 @@ export type AssetMapEntry = {
 export type AssetMap = { AssetMapEntry }
 
 --[[
-	Configuration for syncing a Roblox place's assets to the filesystem.
+	Configuration for syncing a published place's or package's instances to the filesystem.
+	Exactly one of `placeId` and `packageId` is set.
 ]]
 export type SyncConfig = {
-	--- The place ID on Roblox.
-	placeId: number,
+	--- The place ID on Roblox. Its mappings are keyed by `game.` paths.
+	placeId: number?,
+	--- The package's asset ID. Its mappings are keyed by paths that start at the package's own instance.
+	packageId: number?,
+	--- The package version to download; the latest published version when nil.
+	version: number?,
 	map: AssetMap,
 }
 
@@ -32,9 +37,11 @@ export type Settings = {
 export type Config = {
 	settings: Settings,
 	places: { [string]: SyncConfig },
+	--- Shares one namespace with `places`, so a name selects either.
+	packages: { [string]: SyncConfig },
 }
 
---- A single place and its resolved Roblox paths for one sync operation.
+--- A single place or package and its resolved Roblox paths for one sync operation.
 export type ResolvedTarget = {
 	placeName: string,
 	syncConfig: SyncConfig,

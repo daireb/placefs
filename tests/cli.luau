@@ -27,6 +27,13 @@ placeId = 111
 
 [places.maps.assets]
 "game.Workspace.Maps" = { path = "./assets/maps", maxExpansionDepth = 1 }
+
+[packages.materials]
+packageId = 333
+version = 6
+
+[packages.materials.assets]
+"Materials" = "./assets/materials.rbxm"
 ]==]
 
 local LEGACY = [==[
@@ -84,11 +91,12 @@ return function()
 		expectSuccess({ "--config", MULTI_CONFIG, "places" }, "maps")
 		expectSuccess({ "--config=" .. MULTI_CONFIG, "places" }, "maps")
 		expectSuccess({ "places", "-c", MULTI_CONFIG }, "lobby")
+		expectSuccess({ "-c", MULTI_CONFIG, "places" }, "package 333@6")
 
 		-- Errors are single lines with a non-zero exit and no stack trace
 		expectCleanFailure({ "--bogus" }, "Unknown option: --bogus")
 		expectCleanFailure({ "-c", "/tmp/placefs-cli-missing.toml", "--all" }, "does not exist")
-		expectCleanFailure({ "-c", MULTI_CONFIG, "--place", "nope", "--all" }, "Unknown place 'nope'")
+		expectCleanFailure({ "-c", MULTI_CONFIG, "--place", "nope", "--all" }, "Unknown place or package 'nope'")
 		expectCleanFailure({ "-c", LEGACY_CONFIG, "--all" }, "placefs v0 config")
 
 		-- A misnamed mapping section is a loud error, not a silently dropped mapping

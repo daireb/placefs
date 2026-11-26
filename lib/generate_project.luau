@@ -86,6 +86,9 @@ return function(configPath: string, placeName: string?, outputPath: string?)
 	local placeNames = {}
 
 	if placeName ~= nil then
+		if config.packages[placeName] ~= nil then
+			error(`'{placeName}' is a package. Map its files into the project of a place that uses it.`)
+		end
 		if config.places[placeName] == nil then
 			error(`Unknown place '{placeName}'. Run 'placefs places' to list configured places.`)
 		end

@@ -196,6 +196,64 @@ placeId = 123
 		"must contain a [places.maps.assets] table"
 	)
 
+	-- A package is a source of its own, keyed from the package's own instance
+	local packaged = load([==[
+[places.maps]
+placeId = 123
+
+[places.maps.assets]
+"game.Workspace.A" = "./assets/a.rbxm"
+
+[packages.materials]
+packageId = 789
+version = 6
+
+[packages.materials.assets]
+"Materials" = "./assets/materials.rbxm"
+]==])
+	local materials = packaged.packages.materials
+	assert(materials.packageId == 789 and materials.version == 6, "packageId and version should be read")
+	assert(materials.placeId == nil, "a package should carry no placeId")
+	assert(materials.map[1].robloxPath == "Materials", "package paths should keep the package's own name")
+
+	local packageOnly = load([==[
+[packages.materials]
+packageId = 789
+
+[packages.materials.assets]
+"Materials" = "./assets/materials"
+]==])
+	assert(packageOnly.packages.materials.version == nil, "version should default to the latest")
+	assert(next(packageOnly.places) == nil, "a config may hold packages alone")
+
+	expectError(
+		[==[
+[packages.materials]
+packageId = 789
+
+[packages.materials.assets]
+"game.MaterialService.Materials" = "./assets/materials.rbxm"
+]==],
+		"package's paths start at the package's own instance"
+	)
+
+	expectError(
+		[==[
+[places.materials]
+placeId = 123
+
+[places.materials.assets]
+"game.Workspace.A" = "./assets/a.rbxm"
+
+[packages.materials]
+packageId = 789
+
+[packages.materials.assets]
+"Materials" = "./assets/materials.rbxm"
+]==],
+		"names both a place and a package"
+	)
+
 	-- The 0.x shape still reports a migration hint rather than a key error
 	expectError(
 		[==[

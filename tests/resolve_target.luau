@@ -11,6 +11,18 @@ end
 
 local config = {
 	settings = {},
+	packages = {
+		materials = {
+			packageId = 3,
+			map = {
+				{
+					robloxPath = "Materials",
+					filesystemPath = "./assets/materials",
+					maxExpansionDepth = 1,
+				},
+			},
+		},
+	},
 	places = {
 		maps = {
 			placeId = 1,
@@ -107,15 +119,24 @@ return function()
 		positionals = {},
 		all = true,
 	})
-	assert(#allTargets == 2, "--all with no place should target every place")
+	assert(#allTargets == 3, "--all with no place should target every place and package")
 	assert(allTargets[1].placeName == "alpha", "places should be iterated in sorted name order")
 	assert(allTargets[2].placeName == "maps", "places should be iterated in sorted name order")
+	assert(allTargets[3].placeName == "materials", "packages should sort in with places")
 	assert(#allTargets[2].robloxPaths == 3, "--all should cover every mapping in the place")
+
+	-- A package's Roblox paths have no game. prefix, and filesystem paths still map back
+	local function resolvePackage(path: string): string
+		return resolveTarget(config, { place = "materials", positionals = { path }, all = false })[1].robloxPaths[1]
+	end
+	assert(resolvePackage("Materials.Grass") == "Materials.Grass", "a package path should pass through")
+	assert(resolvePackage("assets/materials/Grass") == "Materials.Grass", "a package file should map back")
 
 	-- A single configured place needs no --place to disambiguate
 	local soleConfig = {
 		settings = {},
 		places = { only = config.places.alpha },
+		packages = {},
 	}
 
 	local soleTargets = resolveTarget(soleConfig, {

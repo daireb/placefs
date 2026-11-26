@@ -7,9 +7,18 @@ export type ResolveOptions = {
 	all: boolean,
 }
 
-local function sortedPlaceNames(places: { [string]: Types.SyncConfig }): { string }
+--- Places and packages by name; the loader keeps their names distinct.
+local function allSources(config: Types.Config): { [string]: Types.SyncConfig }
+	local sources = table.clone(config.places)
+	for name, package in config.packages do
+		sources[name] = package
+	end
+	return sources
+end
+
+local function sortedNames(sources: { [string]: Types.SyncConfig }): { string }
 	local names = {}
-	for name in places do
+	for name in sources do
 		table.insert(names, name)
 	end
 	table.sort(names)
@@ -66,11 +75,24 @@ local function resolveFilesystemPath(syncConfig: Types.SyncConfig, path: string)
 	return bestEntry.robloxPath .. "." .. table.concat(relativePath:split("/"), ".")
 end
 
+--- A package's Roblox paths have no `game.` to tell them apart, so they are the ones inside a mapping.
+local function isPackageRobloxPath(syncConfig: Types.SyncConfig, path: string): boolean
+	for _, entry in syncConfig.map do
+		if path == entry.robloxPath or path:sub(1, #entry.robloxPath + 1) == entry.robloxPath .. "." then
+			return true
+		end
+	end
+	return false
+end
+
 local function resolvePositionals(syncConfig: Types.SyncConfig, positionals: { string }): { string }
 	local paths = {}
 
 	for _, path in positionals do
-		if path:sub(1, 5) == "game." or path:sub(1, 10) == "workspace." then
+		local isRobloxPath = if syncConfig.packageId ~= nil
+			then isPackageRobloxPath(syncConfig, path)
+			else path:sub(1, 5) == "game." or path:sub(1, 10) == "workspace."
+		if isRobloxPath then
 			table.insert(paths, normalizeRobloxPath(path))
 		else
 			table.insert(paths, resolveFilesystemPath(syncConfig, path))
@@ -94,15 +116,16 @@ return function(config: Types.Config, options: ResolveOptions): { Types.Resolved
 		error("Cannot combine --all with positional paths")
 	end
 
-	local placeNames = sortedPlaceNames(config.places)
+	local sources = allSources(config)
+	local placeNames = sortedNames(sources)
 
-	-- With a single configured place there is nothing to disambiguate
+	-- With a single configured place or package there is nothing to disambiguate
 	local selected = options.place or (if #placeNames == 1 then placeNames[1] else nil)
 
 	if selected ~= nil then
-		local syncConfig = config.places[selected]
+		local syncConfig = sources[selected]
 		if syncConfig == nil then
-			error(`Unknown place '{selected}'. Configured places: {table.concat(placeNames, ", ")}`)
+			error(`Unknown place or package '{selected}'. Configured: {table.concat(placeNames, ", ")}`)
 		end
 
 		if not options.all and #options.positionals == 0 then
@@ -122,16 +145,14 @@ return function(config: Types.Config, options: ResolveOptions): { Types.Resolved
 
 	if not options.all then
 		if #options.positionals > 0 then
-			error(
-				`--place is required when syncing positional paths. Configured places: {table.concat(placeNames, ", ")}`
-			)
+			error(`--place is required when syncing positional paths. Configured: {table.concat(placeNames, ", ")}`)
 		end
 		error("No instances specified. Use --all or provide --place with Roblox/filesystem paths.")
 	end
 
 	local targets = {}
 	for _, placeName in placeNames do
-		local syncConfig = config.places[placeName]
+		local syncConfig = sources[placeName]
 		table.insert(targets, {
 			placeName = placeName,
 			syncConfig = syncConfig,
