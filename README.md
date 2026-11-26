@@ -1,6 +1,6 @@
 # placefs
 
-Sync Roblox instances from published places to your local filesystem.
+Sync Roblox instances from published places and packages to your local filesystem.
 
 placefs is built for pulling the latest work from team-create builder places into a fully managed [Rojo](https://rojo.space/) project. One configuration can describe every place in an experience, while each place remains independently selectable.
 
@@ -111,6 +111,21 @@ assets/maps/
 
 Folder children become filesystem segments exactly as named. Names containing `/`, `\`, or ending in `.rbxm`/`.rbxmx` are rejected because they cannot round-trip safely. Names containing `.` produce a warning because dotted Roblox paths cannot target them unambiguously.
 
+### Packages
+
+A package can be pulled straight from its published asset instead of from a place that holds a copy, so you get exactly what was published rather than whatever copy that place happens to hold, and placefs does not download a whole place for one package. Give it a `[packages.<name>]` section with the package's asset ID:
+
+```toml
+[packages.materials]
+packageId = 97769108160798
+# version = 6   # optional: pin a published version; the latest when omitted
+
+[packages.materials.assets]
+"Materials" = "./assets/materials.rbxm"
+```
+
+A package's paths start at the package's own instance, here the `Materials` folder, rather than at `game`. They can reach inside it (`"Materials.Grass"`) and expand folders the same way a place's mappings do. Places and packages share one set of names, so `--place materials` selects the package and `--all` syncs it with every place. A downloaded package has no `PackageLink`, since nothing links it back to the asset. `setup` only adds places, so add packages by hand. `project` generates projects for places only: point a place's project at the package's files.
+
 ## Setup
 
 `setup` prompts for a place name and Roblox place ID, verifies you can access the place, and writes `placefs.toml`:
@@ -155,7 +170,7 @@ Target the equivalent filesystem path, including a child that does not exist loc
 pesde run placefs -- --place maps assets/maps/story/Level3
 ```
 
-A positional beginning with `game.` or `workspace.` is interpreted as a Roblox path; all other positionals are filesystem paths.
+A positional beginning with `game.` or `workspace.` is interpreted as a Roblox path; all other positionals are filesystem paths. For a package, a positional that starts with one of its mapped paths (`Materials.Grass`) is a Roblox path instead.
 
 Filesystem targets are resolved against the selected place's mappings. When the config defines more than one place, `--place` is required for positional paths so the target is never ambiguous. When it defines exactly one place, that place is used automatically and `--place` can be omitted everywhere:
 
@@ -171,7 +186,7 @@ Preview a sync without writing:
 pesde run placefs -- --place maps --dry-run --all
 ```
 
-List configured places without accessing Roblox:
+List configured places and packages without accessing Roblox:
 
 ```bash
 pesde run placefs -- places
@@ -220,7 +235,7 @@ USAGE:
     pesde run placefs -- <SUBCOMMAND> [OPTIONS]
 
 SUBCOMMANDS:
-    places                 List configured places
+    places                 List configured places and packages
     project                Generate Rojo project files
     setup                  Add a place to the config
 
@@ -230,7 +245,7 @@ OPTIONS:
     -c, --config <VALUE>            Config path (default: placefs.toml; env: PLACEFS_CONFIG)
     -n, --dry-run                   Preview changes without writing files
     -h, --help                      Show help
-    -p, --place <VALUE>             Configured place name (env: PLACEFS_PLACE)
+    -p, --place <VALUE>             Configured place or package name (env: PLACEFS_PLACE)
     -q, --quiet                     Suppress output except errors
     -v, --version                   Show version
 
@@ -244,7 +259,7 @@ Errors are reported as a single `[placefs] Error: ...` line with a non-zero exit
 
 ### Authentication
 
-placefs downloads places as the logged-in user, so it needs a `.ROBLOSECURITY` cookie. It reads the cookie from your Roblox Studio installation first, and falls back to the `ROBLOSECURITY` environment variable when Studio is unavailable:
+placefs downloads places and packages as the logged-in user, so it needs a `.ROBLOSECURITY` cookie. It reads the cookie from your Roblox Studio installation first, and falls back to the `ROBLOSECURITY` environment variable when Studio is unavailable:
 
 ```bash
 ROBLOSECURITY="$ROBLOX_COOKIE" pesde run placefs -- --all

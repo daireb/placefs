@@ -112,8 +112,9 @@ end
 
 local function rejectDuplicatePlace(placeName: string, configPath: string)
 	local fullPath = resolveFilesystemPath(configPath)
-	if fs.isFile(fullPath) and load_config(fullPath).places[placeName] ~= nil then
-		print(`[placefs] Error: Place '{placeName}' already exists in {configPath}.`)
+	local config = if fs.isFile(fullPath) then load_config(fullPath) else nil
+	if config and (config.places[placeName] ~= nil or config.packages[placeName] ~= nil) then
+		print(`[placefs] Error: '{placeName}' already exists in {configPath}.`)
 		process.exit(1)
 	end
 end

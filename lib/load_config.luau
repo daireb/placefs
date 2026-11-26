@@ -6,9 +6,10 @@ local normalizeRobloxPath = require("./normalize_path")
 
 local DEFAULT_MAX_EXPANSION_DEPTH = 2
 
-local TOP_LEVEL_KEYS = { settings = true, places = true }
+local TOP_LEVEL_KEYS = { settings = true, places = true, packages = true }
 local SETTINGS_KEYS = { maxExpansionDepth = true }
 local PLACE_KEYS = { placeId = true, maxExpansionDepth = true, assets = true }
+local PACKAGE_KEYS = { packageId = true, version = true, maxExpansionDepth = true, assets = true }
 local ASSET_KEYS = { path = true, maxExpansionDepth = true }
 
 local function sortedKeys(tbl: { [string]: any }): { string }
@@ -78,25 +79,38 @@ local function parseAssetEntry(value: any, context: string): (string, number?)
 	return value.path, value.maxExpansionDepth
 end
 
-local function parsePlace(placeName: string, place: any, settingsDepth: number?): Types.SyncConfig
-	local context = `places.{placeName}`
+local function validatePositiveInteger(value: any, context: string)
+	assert(
+		typeof(value) == "number" and value > 0 and math.floor(value) == value,
+		`Invalid config: {context} must be a positive integer`
+	)
+end
+
+--- Reads a [places.<name>] or [packages.<name>] section; `kind` is "place" or "package".
+local function parseSource(kind: string, name: string, source: any, settingsDepth: number?): Types.SyncConfig
+	local isPackage = kind == "package"
+	local context = `{if isPackage then "packages" else "places"}.{name}`
 
 	assert(
-		placeName:match("^[%w][%w_-]*$") ~= nil,
-		`Invalid config: place name '{placeName}' may only contain letters, numbers, hyphens, and underscores`
+		name:match("^[%w][%w_-]*$") ~= nil,
+		`Invalid config: {kind} name '{name}' may only contain letters, numbers, hyphens, and underscores`
 	)
-	assert(typeof(place) == "table", `Invalid config: {context} must be a table`)
-	rejectUnknownKeys(place, PLACE_KEYS, context)
+	assert(typeof(source) == "table", `Invalid config: {context} must be a table`)
+	rejectUnknownKeys(source, if isPackage then PACKAGE_KEYS else PLACE_KEYS, context)
 
-	assert(
-		typeof(place.placeId) == "number" and place.placeId > 0 and math.floor(place.placeId) == place.placeId,
-		`Invalid config: {context}.placeId must be a positive integer`
-	)
-	validateMaxExpansionDepth(place.maxExpansionDepth, `{context}.maxExpansionDepth`)
+	if isPackage then
+		validatePositiveInteger(source.packageId, `{context}.packageId`)
+		if source.version ~= nil then
+			validatePositiveInteger(source.version, `{context}.version`)
+		end
+	else
+		validatePositiveInteger(source.placeId, `{context}.placeId`)
+	end
+	validateMaxExpansionDepth(source.maxExpansionDepth, `{context}.maxExpansionDepth`)
 
-	assert(typeof(place.assets) == "table", `Invalid config: {context} must contain a [{context}.assets] table`)
+	assert(typeof(source.assets) == "table", `Invalid config: {context} must contain a [{context}.assets] table`)
 
-	local robloxPaths = sortedKeys(place.assets)
+	local robloxPaths = sortedKeys(source.assets)
 	assert(#robloxPaths > 0, `Invalid config: [{context}.assets] must contain at least one mapping`)
 
 	local map: Types.AssetMap = {}
@@ -104,9 +118,15 @@ local function parsePlace(placeName: string, place: any, settingsDepth: number?)
 
 	for _, rawPath in robloxPaths do
 		local entryContext = `{context}.assets."{rawPath}"`
-		local filesystemPath, entryDepth = parseAssetEntry(place.assets[rawPath], entryContext)
+		local filesystemPath, entryDepth = parseAssetEntry(source.assets[rawPath], entryContext)
 
 		local robloxPath = normalizeRobloxPath(rawPath)
+		if isPackage and robloxPath:sub(1, 5) == "game." then
+			error(
+				`Invalid config: {entryContext} starts with 'game.', but a package's paths start at the `
+					.. 'package\'s own instance, such as "Materials" or "Materials.Grass"'
+			)
+		end
 		if seen[robloxPath] then
 			error(`Invalid config: {context} maps '{robloxPath}' twice, as '{seen[robloxPath]}' and '{rawPath}'`)
 		end
@@ -115,12 +135,14 @@ local function parsePlace(placeName: string, place: any, settingsDepth: number?)
 		table.insert(map, {
 			robloxPath = robloxPath,
 			filesystemPath = filesystemPath,
-			maxExpansionDepth = entryDepth or place.maxExpansionDepth or settingsDepth or DEFAULT_MAX_EXPANSION_DEPTH,
+			maxExpansionDepth = entryDepth or source.maxExpansionDepth or settingsDepth or DEFAULT_MAX_EXPANSION_DEPTH,
 		})
 	end
 
 	return {
-		placeId = place.placeId,
+		placeId = if isPackage then nil else source.placeId,
+		packageId = if isPackage then source.packageId else nil,
+		version = if isPackage then source.version else nil,
 		map = map,
 	}
 end
@@ -149,12 +171,27 @@ return function(path: string): Types.Config
 	rejectUnknownKeys(settings, SETTINGS_KEYS, "[settings]")
 	validateMaxExpansionDepth(settings.maxExpansionDepth, "settings.maxExpansionDepth")
 
-	assert(typeof(content.places) == "table", "Invalid config: missing [places.<name>] sections")
-	assert(next(content.places) ~= nil, "Invalid config: at least one place is required")
+	local rawPlaces = content.places or {}
+	local rawPackages = content.packages or {}
+	assert(typeof(rawPlaces) == "table", "Invalid config: [places] must contain [places.<name>] sections")
+	assert(typeof(rawPackages) == "table", "Invalid config: [packages] must contain [packages.<name>] sections")
+	assert(
+		next(rawPlaces) ~= nil or next(rawPackages) ~= nil,
+		"Invalid config: at least one [places.<name>] or [packages.<name>] section is required"
+	)
 
 	local places: { [string]: Types.SyncConfig } = {}
-	for placeName, place in content.places do
-		places[placeName] = parsePlace(placeName, place, settings.maxExpansionDepth)
+	for placeName, place in rawPlaces do
+		places[placeName] = parseSource("place", placeName, place, settings.maxExpansionDepth)
+	end
+
+	local packages: { [string]: Types.SyncConfig } = {}
+	for packageName, package in rawPackages do
+		-- One name selects one source on the command line
+		if places[packageName] ~= nil then
+			error(`Invalid config: '{packageName}' names both a place and a package`)
+		end
+		packages[packageName] = parseSource("package", packageName, package, settings.maxExpansionDepth)
 	end
 
 	return {
@@ -162,5 +199,6 @@ return function(path: string): Types.Config
 			maxExpansionDepth = settings.maxExpansionDepth,
 		},
 		places = places,
+		packages = packages,
 	}
 end

@@ -3,8 +3,10 @@ local roblox = require("@lune/roblox")
 local Types = require("./Types")
 
 local cleanError = require("./clean_error")
+local download_package = require("./download_package")
 local download_place = require("./download_place")
 local get_auth_cookie = require("./get_auth_cookie")
+local resolve_root = require("./resolve_root")
 local save_asset = require("./save_asset")
 
 local DEFAULT_MAX_EXPANSION_DEPTH = 2
@@ -78,16 +80,6 @@ local function getRelativeSegments(ancestorPath: string, targetPath: string): { 
 	return relativePath:split(".")
 end
 
---- Resolves an instance from a Roblox path, returning the DataModel root for further traversal.
---- Expects paths to be normalized to "game." prefix format.
-local function resolveRootInstance(game: roblox.DataModel, robloxPath: string): (roblox.Instance, string)
-	if robloxPath:sub(1, 5) ~= "game." then
-		error(`Invalid Roblox path: '{robloxPath}'. Path must start with 'game.'`)
-	end
-
-	return game, robloxPath:sub(6)
-end
-
 --- Resolves an instance from the given parent using a dot-separated path.
 local function resolveFromParent(parent: roblox.Instance, path: string): roblox.Instance?
 	if path == "" then
@@ -109,18 +101,18 @@ end
 
 --- Validates that a target path is reachable (not inside a serialized file).
 --- Walks from the mapping root to the target, checking each intermediate instance.
---- @param game The Roblox DataModel
+--- @param root The downloaded place's DataModel or package container
 --- @param ancestorPath The Roblox path of the mapping entry (e.g., "game.Workspace.Parts")
 --- @param relativeSegments The path segments from ancestor to target (e.g., {"Gun", "Handle"})
 --- @param maxDepth The effective max expansion depth for this entry
 --- @return The resolved target instance if reachable
 local function validateAndResolveTarget(
-	game: roblox.DataModel,
+	root: roblox.Instance,
 	ancestorPath: string,
 	relativeSegments: { string },
 	maxDepth: number
 ): roblox.Instance
-	local rootInstance, remainingPath = resolveRootInstance(game, ancestorPath)
+	local rootInstance, remainingPath = resolve_root(root, ancestorPath)
 	local ancestorInstance = resolveFromParent(rootInstance, remainingPath)
 
 	if ancestorInstance == nil then
@@ -270,9 +262,10 @@ return function(syncConfig: Types.SyncConfig, instancesToUpdate: { string }, opt
 		instancesToUpdateLookup[robloxPath] = true
 	end
 
-	-- Download place from Roblox
 	local auth_cookie = get_auth_cookie()
-	local game = download_place(syncConfig.placeId, auth_cookie, options)
+	local root: roblox.Instance = if syncConfig.packageId ~= nil
+		then download_package(syncConfig.packageId, syncConfig.version, auth_cookie, options)
+		else download_place(syncConfig.placeId :: number, auth_cookie, options)
 
 	-- Track results for summary
 	local results: { UpdateResult } = {}
@@ -300,7 +293,7 @@ return function(syncConfig: Types.SyncConfig, instancesToUpdate: { string }, opt
 			if targetRobloxPath == entry.robloxPath then
 				-- Exact match: save the whole mapping
 				log(`[placefs] {saveWord}: {entry.robloxPath} -> {entry.filesystemPath}`, options)
-				save_asset(game, entry.robloxPath, entry.filesystemPath, effectiveMaxDepth, options)
+				save_asset(root, entry.robloxPath, entry.filesystemPath, effectiveMaxDepth, options)
 			else
 				-- Targeted update: validate path is reachable and save just the target
 				local relativeSegments = getRelativeSegments(entry.robloxPath, targetRobloxPath)
@@ -308,7 +301,7 @@ return function(syncConfig: Types.SyncConfig, instancesToUpdate: { string }, opt
 
 				-- Validate the path is reachable (not inside a serialized file)
 				local targetInstance =
-					validateAndResolveTarget(game, entry.robloxPath, relativeSegments, effectiveMaxDepth)
+					validateAndResolveTarget(root, entry.robloxPath, relativeSegments, effectiveMaxDepth)
 
 				-- Calculate filesystem path for this specific target
 				local targetFilesystemPath = buildTargetFilesystemPath(
@@ -323,7 +316,7 @@ return function(syncConfig: Types.SyncConfig, instancesToUpdate: { string }, opt
 				local remainingDepth = effectiveMaxDepth - targetDepth
 
 				log(`[placefs] {saveWord}: {targetRobloxPath} -> {targetFilesystemPath}`, options)
-				save_asset(game, targetRobloxPath, targetFilesystemPath, remainingDepth, options)
+				save_asset(root, targetRobloxPath, targetFilesystemPath, remainingDepth, options)
 			end
 		end)
 

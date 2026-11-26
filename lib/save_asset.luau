@@ -3,6 +3,7 @@ local fs = require("@lune/fs")
 
 local Types = require("./Types")
 local findUnpackedVariants = require("./find_unpacked_variants")
+local resolveRoot = require("./resolve_root")
 
 local DEFAULT_MAX_EXPANSION_DEPTH = 2
 
@@ -22,14 +23,10 @@ local function parseRobloxPath(parent: roblox.Instance, path: string): roblox.In
 	return currentInstance
 end
 
---- Resolves an instance from a full Roblox path (e.g., "game.Workspace.Parts").
---- Expects paths to be normalized to "game." prefix format.
-local function resolveInstance(game: roblox.DataModel, robloxPath: string): roblox.Instance
-	if robloxPath:sub(1, 5) ~= "game." then
-		error(`Invalid Roblox path: '{robloxPath}'. Path must start with 'game.'`)
-	end
-
-	local instance = parseRobloxPath(game, robloxPath:sub(6))
+--- Resolves an instance from a full Roblox path (e.g., "game.Workspace.Parts", or "Materials" in a package).
+local function resolveInstance(root: roblox.Instance, robloxPath: string): roblox.Instance
+	local parent, remainingPath = resolveRoot(root, robloxPath)
+	local instance = parseRobloxPath(parent, remainingPath)
 	if instance == nil then
 		error(`Instance not found at Roblox path: '{robloxPath}'`)
 	end
@@ -176,19 +173,19 @@ local function saveRecursive(
 end
 
 --- Saves a Roblox instance to the filesystem at the specified path.
---- @param game The Roblox DataModel
+--- @param root The downloaded place's DataModel or package container
 --- @param robloxPath The path to the instance in Roblox (e.g., "game.Workspace.Parts")
 --- @param filesystemPath The destination path on the filesystem
 --- @param maxExpansionDepth How deep to expand folders (nil for default, 0 for no expansion)
 --- @param options Runtime options
 return function(
-	game: roblox.DataModel,
+	root: roblox.Instance,
 	robloxPath: string,
 	filesystemPath: string,
 	maxExpansionDepth: number?,
 	options: Types.Options?
 )
-	local instance = resolveInstance(game, robloxPath)
+	local instance = resolveInstance(root, robloxPath)
 	local effectiveMaxDepth = maxExpansionDepth or DEFAULT_MAX_EXPANSION_DEPTH
 	local isDryRun = options and options.dryRun
 
